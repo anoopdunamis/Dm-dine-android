@@ -10,6 +10,9 @@
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DynaMenu">
+    <meta name="format-detection" content="telephone=no">
+    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
 
@@ -19,6 +22,8 @@
             background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: none;
+            /* Support for iOS Safe Areas (Notch) */
+            padding-top: env(safe-area-inset-top);
         }
         .safe-bottom {
             padding-bottom: env(safe-area-inset-bottom);
