@@ -5,12 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: [
-      {
-        find: './runtimeConfig',
-        replacement: './runtimeConfig.browser',
-      },
-    ]
+    // alias: [
+    //   {
+    //     find: './runtimeConfig',
+    //     replacement: './runtimeConfig.browser',
+    //   },
+    // ]
   },
   build: {
     // Specify the output directory for Amplify Hosting (commonly 'build' or 'dist')
