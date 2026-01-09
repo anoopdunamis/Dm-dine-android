@@ -1,20 +1,15 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
+import { defineConfig } from 'vite';
+
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: [
-      {
-        find: './runtimeConfig',
-        replacement: './runtimeConfig.browser',
-      },
-    ]
-  },
+  base: './',
   build: {
-    // Specify the output directory for Amplify Hosting (commonly 'build' or 'dist')
-    outDir: 'dist', 
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'esbuild',
+  },
+  server: {
+    port: 3000
   }
 });
-

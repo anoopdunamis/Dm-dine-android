@@ -7,11 +7,12 @@ import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import { initialTables, initialOrders } from './constants';
 
-// Configuration for API
-const API_ENABLED = false; // Set to true to connect to the provided PHP APIs
-const API_BASE_URL = ''; // Set your API base URL here, e.g., 'http://localhost/restaurant/'
+// Configuration for API - Toggle to true when PHP backend is ready
+const API_ENABLED = false; 
+const API_BASE_URL = window.location.origin + '/'; 
 
 const App: React.FC = () => {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state');
     const initialState = saved ? JSON.parse(saved) : null;
@@ -28,7 +29,25 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch tables from API
+  // Catch the install prompt for Android
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   const fetchTables = useCallback(async () => {
     if (!API_ENABLED) return;
     try {
@@ -45,7 +64,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Fetch orders for current table
   const fetchOrders = useCallback(async (tableNo: string) => {
     if (!API_ENABLED) return;
     try {
@@ -62,7 +80,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Handle splash transition
   useEffect(() => {
     const timer = setTimeout(() => {
       setState(prev => ({ 
@@ -230,11 +247,12 @@ const App: React.FC = () => {
             tables={state.tables}
             orders={state.orders}
             onSelectTable={handleSelectTable}
+            onInstall={deferredPrompt ? handleInstallClick : undefined}
           />
         )}
       </main>
 
-      <footer className="py-8 text-center">
+      <footer className="py-8 text-center bg-slate-50 border-t border-slate-100">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
           Powered by <span className="text-indigo-400/60 font-black">Dyna-menu</span>
         </p>

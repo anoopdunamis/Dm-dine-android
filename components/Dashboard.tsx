@@ -6,11 +6,12 @@ interface DashboardProps {
   tables: Table[];
   orders: OrderItem[];
   onSelectTable: (tableNo: string) => void;
+  onInstall?: () => void;
 }
 
 type FilterStatus = 'all' | 'occupied' | 'inactive';
 
-const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable }) => {
+const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, onInstall }) => {
   const [filter, setFilter] = useState<FilterStatus>('all');
 
   const filteredTables = tables.filter(table => {
@@ -20,9 +21,19 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable }) 
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
-      <header className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Restaurant View</h1>
-        <p className="text-slate-500 mt-1">Select a table to manage orders</p>
+      <header className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900">Restaurant View</h1>
+          <p className="text-slate-500 mt-1">Select a table to manage orders</p>
+        </div>
+        {onInstall && (
+          <button 
+            onClick={onInstall}
+            className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-lg shadow-indigo-100 animate-bounce"
+          >
+            Install App
+          </button>
+        )}
       </header>
 
       <div className="flex flex-wrap gap-3 mb-8">
