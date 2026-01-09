@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,10 +23,18 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Prevent document scroll */
-            overscroll-behavior: none; /* Disable pull-to-refresh */
+            overflow: hidden; /* Prevent document scroll which triggers pull-to-refresh */
+            overscroll-behavior-y: none; /* Disable pull-to-refresh */
             background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
+            user-select: none; /* Prevent text selection to feel like a native app */
+            -webkit-user-select: none;
+        }
+
+        /* Re-enable selection for inputs and textareas */
+        input, textarea {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         #root {
@@ -39,18 +46,13 @@
             flex-direction: column;
             /* Support for iOS Safe Areas (Notch) */
             padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .safe-bottom {
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        @media all and (display-mode: standalone) {
-            body {
-                user-select: none;
-            }
-        }
-        
         /* Hide scrollbar for a cleaner "app" look while still allowing scroll */
         #root::-webkit-scrollbar {
             display: none;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, OrderItem, OrderStatus, AppState, AppView } from './types';
 import Dashboard from './components/Dashboard';
@@ -200,12 +199,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col relative">
+    <div className="h-full bg-slate-50 text-slate-900 font-sans flex flex-col relative overflow-hidden">
       {isLoading && (
         <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-50 animate-pulse"></div>
       )}
       
-      <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4">
+      <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4 flex-shrink-0">
         {state.isAuthenticated && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center border border-indigo-200 shadow-inner">
@@ -233,7 +232,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <main className="flex-grow pb-12">
+      <main className="flex-grow overflow-y-auto">
         {state.currentTable ? (
           <TableView 
             table={state.tables.find(t => t.table_no === state.currentTable)!}
@@ -252,7 +251,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="py-8 text-center bg-slate-50 border-t border-slate-100">
+      <footer className="py-8 text-center bg-slate-50 border-t border-slate-100 flex-shrink-0">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
           Powered by <span className="text-indigo-400/60 font-black">Dyna-menu</span>
         </p>
