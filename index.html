@@ -18,20 +18,46 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
+        /* Force full height and disable document-level bouncing/refresh */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent document scroll */
+            overscroll-behavior: none; /* Disable pull-to-refresh */
             background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
+        }
+
+        #root {
+            height: 100%;
+            width: 100%;
+            overflow-y: auto; /* Enable scrolling only inside the app container */
+            -webkit-overflow-scrolling: touch; /* Smooth inertia scroll for iOS */
+            display: flex;
+            flex-direction: column;
             /* Support for iOS Safe Areas (Notch) */
             padding-top: env(safe-area-inset-top);
         }
+
         .safe-bottom {
             padding-bottom: env(safe-area-inset-bottom);
         }
+
         @media all and (display-mode: standalone) {
             body {
                 user-select: none;
             }
+        }
+        
+        /* Hide scrollbar for a cleaner "app" look while still allowing scroll */
+        #root::-webkit-scrollbar {
+            display: none;
+        }
+        #root {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 <script type="importmap">
