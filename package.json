@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && cp manifest.json sw.js dist/",
+    "build": "tsc && vite build && cp manifest.json sw.js dist/ && mkdir -p dist/.well-known && cp assetlinks.json dist/.well-known/assetlinks.json",
     "preview": "vite preview"
   },
   "dependencies": {

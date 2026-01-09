@@ -1,0 +1,15 @@
+
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dynamenu.waiter.twa",
+      "sha256_cert_fingerprints": [
+        "YOUR_SHA256_FINGERPRINT_HERE"
+      ]
+    }
+  }
+]
