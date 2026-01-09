@@ -1,0 +1,7 @@
+{
+  "name": "Dyna-Menu Waiter",
+  "description": "A high-performance, mobile-responsive restaurant order management system designed for waiters and kitchen staff. Track table statuses, manage courses, and process orders with secure waiter verification.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
