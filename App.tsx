@@ -7,6 +7,10 @@ import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import { initialTables, initialOrders } from './constants';
 
+// Configuration for API
+const API_ENABLED = false; // Set to true to connect to the provided PHP APIs
+const API_BASE_URL = ''; // Set your API base URL here, e.g., 'http://localhost/restaurant/'
+
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state');
@@ -22,6 +26,42 @@ const App: React.FC = () => {
     };
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch tables from API
+  const fetchTables = useCallback(async () => {
+    if (!API_ENABLED) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${API_BASE_URL}api_tables.php`);
+      const data = await res.json();
+      if (!data.error) {
+        setState(prev => ({ ...prev, tables: data }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch tables", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch orders for current table
+  const fetchOrders = useCallback(async (tableNo: string) => {
+    if (!API_ENABLED) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${API_BASE_URL}api_orders.php?table_no=${tableNo}`);
+      const data = await res.json();
+      if (!data.error) {
+        setState(prev => ({ ...prev, orders: data }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch orders", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Handle splash transition
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -34,7 +74,12 @@ const App: React.FC = () => {
   }, [state.isAuthenticated]);
 
   useEffect(() => {
-    // Only save core data, not temporary view state
+    if (state.view === 'main' && !state.currentTable) {
+      fetchTables();
+    }
+  }, [state.view, state.currentTable, fetchTables]);
+
+  useEffect(() => {
     const { isAuthenticated, userName, tables, orders } = state;
     localStorage.setItem('dinesync_state', JSON.stringify({ isAuthenticated, userName, tables, orders }));
   }, [state]);
@@ -60,15 +105,34 @@ const App: React.FC = () => {
 
   const handleSelectTable = (tableNo: string) => {
     setState(prev => ({ ...prev, currentTable: tableNo }));
+    fetchOrders(tableNo);
   };
 
   const handleBack = () => {
     setState(prev => ({ ...prev, currentTable: null }));
+    fetchTables();
   };
 
-  const handleDeleteItem = (itemId: string, waiterCode: string) => {
+  const handleDeleteItem = async (itemId: string, waiterCode: string) => {
     if (waiterCode.length < 3) return false;
     
+    if (API_ENABLED) {
+        try {
+            const res = await fetch(`${API_BASE_URL}api_delete_item.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            if (state.currentTable) fetchOrders(state.currentTable);
+            return true;
+        } catch (err: any) {
+            alert(err.message);
+            return false;
+        }
+    }
+
     setState(prev => {
       const newOrders = prev.orders.filter(o => o.id !== itemId);
       return { ...prev, orders: newOrders };
@@ -76,8 +140,25 @@ const App: React.FC = () => {
     return true;
   };
 
-  const handleConfirmOrder = (tableNo: string, waiterCode: string, note: string) => {
+  const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
     if (waiterCode.length < 3) return false;
+
+    if (API_ENABLED) {
+        try {
+            const res = await fetch(`${API_BASE_URL}api_confirm_order.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            fetchOrders(tableNo);
+            return true;
+        } catch (err: any) {
+            alert(err.message);
+            return false;
+        }
+    }
 
     setState(prev => {
       const newOrders = prev.orders.map(order => {
@@ -88,7 +169,7 @@ const App: React.FC = () => {
           note: note 
         } : order;
       });
-      return { ...prev, orders: newOrders };
+      return { ...prev, orders: newOrders, tables: prev.tables.map(t => t.table_no === tableNo ? {...t, status: 'occupied'} : t) };
     });
     return true;
   };
@@ -102,7 +183,11 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col relative">
+      {isLoading && (
+        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-50 animate-pulse"></div>
+      )}
+      
       <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4">
         {state.isAuthenticated && (
           <div className="flex items-center gap-2">
@@ -115,13 +200,20 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        <button 
-          onClick={handleLogout}
-          className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 group"
-        >
-          <span>Sign Out</span>
-          <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-        </button>
+        <div className="flex gap-4 items-center">
+            {!state.currentTable && (
+                <button onClick={fetchTables} className="p-2 text-slate-300 hover:text-indigo-500">
+                    <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+            )}
+            <button 
+                onClick={handleLogout}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 group"
+            >
+                <span>Sign Out</span>
+                <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+        </div>
       </div>
 
       <main className="flex-grow pb-12">
