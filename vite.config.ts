@@ -14,7 +14,7 @@ export default defineConfig({
   },
   build: {
     // Specify the output directory for Amplify Hosting (commonly 'build' or 'dist')
-    outDir: 'build', 
+    outDir: 'dist', 
   }
 });
 
