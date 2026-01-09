@@ -7,13 +7,14 @@ interface TableViewProps {
   table: Table;
   orders: OrderItem[];
   onBack: () => void;
-  onDelete: (id: string, code: string) => boolean;
-  onConfirm: (tableNo: string, code: string, note: string) => boolean;
+  onDelete: (id: string, code: string) => Promise<boolean> | boolean;
+  onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
 }
 
 const TableView: React.FC<TableViewProps> = ({ table, orders, onBack, onDelete, onConfirm }) => {
   const [modalType, setModalType] = useState<'delete' | 'confirm' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const cartItems = orders.filter(o => o.status === OrderStatus.CART);
   const confirmedItems = orders.filter(o => o.status === OrderStatus.CONFIRMED);
@@ -26,20 +27,27 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, onBack, onDelete, 
   const preparedTotal = calculateTotal(preparedItems);
   const grandTotal = cartTotal + confirmedTotal + preparedTotal + table.tax;
 
-  const handleAction = (code: string, note?: string) => {
-    if (modalType === 'delete' && targetId) {
-      if (onDelete(targetId, code)) {
-        setModalType(null);
-        setTargetId(null);
-      } else {
-        alert('Invalid Waiter Code');
-      }
-    } else if (modalType === 'confirm') {
-      if (onConfirm(table.table_no, code, note || '')) {
-        setModalType(null);
-      } else {
-        alert('Invalid Waiter Code');
-      }
+  const handleAction = async (code: string, note?: string) => {
+    setIsProcessing(true);
+    try {
+        if (modalType === 'delete' && targetId) {
+          const success = await onDelete(targetId, code);
+          if (success) {
+            setModalType(null);
+            setTargetId(null);
+          } else {
+            alert('Invalid Waiter Code');
+          }
+        } else if (modalType === 'confirm') {
+          const success = await onConfirm(table.table_no, code, note || '');
+          if (success) {
+            setModalType(null);
+          } else {
+            alert('Invalid Waiter Code');
+          }
+        }
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -187,7 +195,7 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, onBack, onDelete, 
       {modalType && (
         <VerificationModal 
           type={modalType}
-          onClose={() => setModalType(null)}
+          onClose={() => !isProcessing && setModalType(null)}
           onConfirm={handleAction}
         />
       )}
