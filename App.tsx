@@ -4,13 +4,15 @@ import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
-import { initialTables, initialOrders } from './constants';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 // Configuration for API
 const API_ENABLED = true; 
 const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/'; 
 const STATIC_RS_ID = '235';
+
+// Public CORS proxy for web-based development/testing
+const CORS_PROXY = 'https://corsproxy.io/?';
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -23,14 +25,13 @@ const App: React.FC = () => {
       isAuthenticated: initialState?.isAuthenticated || false,
       userName: initialState?.userName || null,
       currentTable: null,
-      tables: initialState?.tables || initialTables,
-      orders: initialState?.orders || initialOrders,
+      tables: [], 
+      orders: [],
     };
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Catch the install prompt for Android/PWA
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
@@ -51,70 +52,71 @@ const App: React.FC = () => {
 
   /**
    * Universal fetch wrapper.
-   * On Native: Uses CapacitorHttp (Bypasses CORS).
-   * On Web: Uses standard fetch (Subject to CORS).
+   * On Web: Standard fetch with minimal headers. If CORS fails, it retries through a proxy.
+   * On Native: CapacitorHttp to bypass CORS entirely.
    */
-  const makeRequest = async (url: string, options: any = {}) => {
+  const makeRequest = async (url: string, options: any = {}, useProxy: boolean = false) => {
     const method = options.method || 'GET';
-    const isNative = Capacitor.isNativePlatform();
+    const platform = Capacitor.getPlatform();
+    const isNative = platform === 'ios' || platform === 'android';
     
+    // Construct final URL
+    const finalUrl = (!isNative && useProxy) ? `${CORS_PROXY}${encodeURIComponent(url)}` : url;
+    
+    console.debug(`[DynaSync API] ${method} Request to: ${finalUrl} (Platform: ${platform}, Proxy: ${useProxy})`);
+
     try {
       if (isNative) {
-        // NATIVE PATH: Bypasses CORS completely
-        const headers: Record<string, string> = {
-          'Accept': 'application/json',
-          ...options.headers,
-        };
-        if (method !== 'GET') {
-          headers['Content-Type'] = 'application/json';
-        }
-
+        // NATIVE PATH: Uses native code to bypass browser CORS restrictions
         const response = await CapacitorHttp.request({
           url,
           method,
-          headers,
+          headers: {
+            'Accept': 'application/json',
+            ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
+            ...options.headers,
+          },
           data: options.body ? JSON.parse(options.body) : undefined,
           connectTimeout: 15000,
           readTimeout: 15000
         });
-        
+
         if (response.status >= 200 && response.status < 300) {
           return response.data;
         }
-        throw new Error(`Native API Error: ${response.status} ${url}`);
+        throw new Error(`Native API Error: ${response.status}`);
       } else {
-        // WEB PATH: Subject to CORS. 
-        // We carefully construct the fetch options to avoid 'Failed to fetch' errors
+        // WEB PATH
         const fetchOptions: RequestInit = {
           method,
-          mode: 'cors',
           credentials: 'omit',
         };
 
-        const headers: Record<string, string> = { ...options.headers };
-        
-        // For GET requests, we avoid extra headers to stay in the "simple request" category if possible
         if (method !== 'GET') {
-          headers['Content-Type'] = 'application/json';
-          if (options.body) {
-            fetchOptions.body = options.body;
-          }
-        } else {
-          // Explicitly ensure body is not present on GET
-          delete (fetchOptions as any).body;
+          fetchOptions.headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...options.headers,
+          };
+          if (options.body) fetchOptions.body = options.body;
+        } else if (options.headers) {
+          fetchOptions.headers = options.headers;
         }
 
-        fetchOptions.headers = headers;
-
-        const response = await fetch(url, fetchOptions);
-        
+        const response = await fetch(finalUrl, fetchOptions);
         if (!response.ok) {
-          throw new Error(`Web API Error: ${response.status} ${url}`);
+          throw new Error(`Web API Error: ${response.status}`);
         }
         return await response.json();
       }
     } catch (err: any) {
-      console.warn(`[API REQUEST FAILED] ${method} ${url}:`, err.message);
+      // If we failed on web without a proxy, try one last time WITH the proxy
+      if (!isNative && !useProxy && (err.message === 'Failed to fetch' || err.name === 'TypeError')) {
+        console.warn(`[DynaSync] Direct fetch failed (CORS). Retrying with proxy...`);
+        return makeRequest(url, options, true);
+      }
+      
+      console.warn(`[DynaSync API FAILURE] ${method} ${url}:`, err.message);
       throw err;
     }
   };
@@ -123,14 +125,40 @@ const App: React.FC = () => {
     if (!API_ENABLED) return;
     setIsLoading(true);
     try {
-      const data = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
-      if (data && !data.error && Array.isArray(data)) {
-        setState(prev => ({ ...prev, tables: data }));
-      } else if (data && data.error) {
-        console.error("Tables API returned logical error:", data.error);
+      const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
+      console.log("Tables Response Received:", response);
+      
+      let tableData: any[] = [];
+      if (Array.isArray(response)) {
+        tableData = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        tableData = response.data;
+      } else if (response && response.tables && Array.isArray(response.tables)) {
+        tableData = response.tables;
       }
+
+      const mappedTables: Table[] = tableData.map((t: any) => {
+        const rawStatus = String(t.status || '').toLowerCase();
+        // Standardize status based on common API values
+        const isOccupied = rawStatus.includes('occupied') || 
+                          rawStatus.includes('busy') || 
+                          rawStatus === '1' || 
+                          rawStatus === 'true' ||
+                          rawStatus === 'placed' ||
+                          rawStatus === 'active';
+        
+        return {
+          table_no: String(t.table_no || t.no || t.table_id || t.id || '??'),
+          status: isOccupied ? 'occupied' : 'inactive',
+          guest_count: Number(t.guest_count || t.guests) || 0,
+          tax: Number(t.tax || t.service_charge || 0)
+        };
+      });
+
+      setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err) {
-      // Error is already logged in makeRequest
+      console.error("fetchTables final failure:", err);
+      setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
     }
@@ -140,15 +168,31 @@ const App: React.FC = () => {
     if (!API_ENABLED) return;
     setIsLoading(true);
     try {
-      const data = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
-      if (data && !data.error && Array.isArray(data)) {
-        setState(prev => ({ ...prev, orders: data }));
-      } else {
-        // Clear orders if table is empty or API returns error/null
-        setState(prev => ({ ...prev, orders: [] }));
+      const response = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
+      
+      let orderData: any[] = [];
+      if (Array.isArray(response)) {
+        orderData = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        orderData = response.data;
       }
+
+      const mappedOrders: OrderItem[] = orderData.map((o: any) => ({
+        id: String(o.id || o.sub_id || Math.random().toString(36).substr(2, 9)),
+        food_name: o.food_name || o.item_name || 'Item',
+        food_item_price: Number(o.food_item_price || o.price) || 0,
+        food_quantity: Number(o.food_quantity || o.quantity || 1) || 1,
+        status: (o.status as OrderStatus) || OrderStatus.CONFIRMED,
+        sub_id: String(o.sub_id || ''),
+        master_order_id: String(o.master_order_id || ''),
+        preferences: Array.isArray(o.preferences) ? o.preferences : [],
+        order_taken_by: o.order_taken_by || o.waiter || 'Staff',
+        note: o.note || o.instruction || ''
+      }));
+
+      setState(prev => ({ ...prev, orders: mappedOrders }));
     } catch (err) {
-      // Clear orders on failure to avoid showing stale data from previous table
+      console.error("fetchOrders logic failed:", err);
       setState(prev => ({ ...prev, orders: [] }));
     } finally {
       setIsLoading(false);
@@ -207,48 +251,38 @@ const App: React.FC = () => {
 
   const handleDeleteItem = async (itemId: string, waiterCode: string) => {
     if (waiterCode.length < 3) return false;
-    
-    if (API_ENABLED) {
-        setIsLoading(true);
-        try {
-            const data = await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${STATIC_RS_ID}`, {
-                method: 'POST',
-                body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
-            });
-            if (data.error) throw new Error(data.error);
-            if (state.currentTable) fetchOrders(state.currentTable);
-            return true;
-        } catch (err: any) {
-            alert(err.message || "Failed to delete item.");
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
+    setIsLoading(true);
+    try {
+        await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${STATIC_RS_ID}`, {
+            method: 'POST',
+            body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
+        });
+        if (state.currentTable) fetchOrders(state.currentTable);
+        return true;
+    } catch (err: any) {
+        alert("Action failed. Check connection.");
+        return false;
+    } finally {
+        setIsLoading(false);
     }
-    return false;
   };
 
   const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
     if (waiterCode.length < 3) return false;
-
-    if (API_ENABLED) {
-        setIsLoading(true);
-        try {
-            const data = await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${STATIC_RS_ID}`, {
-                method: 'POST',
-                body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
-            });
-            if (data.error) throw new Error(data.error);
-            fetchOrders(tableNo);
-            return true;
-        } catch (err: any) {
-            alert(err.message || "Failed to confirm order.");
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
+    setIsLoading(true);
+    try {
+        await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${STATIC_RS_ID}`, {
+            method: 'POST',
+            body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
+        });
+        fetchOrders(tableNo);
+        return true;
+    } catch (err: any) {
+        alert("Action failed. Check connection.");
+        return false;
+    } finally {
+        setIsLoading(false);
     }
-    return false;
   };
 
   if (state.view === 'splash') {

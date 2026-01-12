@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Table, OrderItem, OrderStatus } from '../types';
 
@@ -107,11 +106,12 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
         ) : (
           <div className="col-span-full py-20 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-slate-300 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p className="text-slate-400 font-medium">No tables found for this filter</p>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No tables detected from API</p>
+            <p className="text-slate-300 text-[10px] mt-1">Please wait or try to sign in again.</p>
           </div>
         )}
       </div>
