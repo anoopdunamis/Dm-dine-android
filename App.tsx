@@ -10,7 +10,7 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core';
 // Configuration for API
 const API_ENABLED = true; 
 const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/'; 
-const STATIC_RS_ID = '179';
+const STATIC_RS_ID = '235';
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -58,53 +58,63 @@ const App: React.FC = () => {
     const method = options.method || 'GET';
     const isNative = Capacitor.isNativePlatform();
     
-    // Construct Headers
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      ...options.headers,
-    };
-
-    // Only add Content-Type for write operations to avoid preflight on GET
-    if (method !== 'GET') {
-      headers['Content-Type'] = 'application/json';
-    }
-
     try {
       if (isNative) {
         // NATIVE PATH: Bypasses CORS completely
+        const headers: Record<string, string> = {
+          'Accept': 'application/json',
+          ...options.headers,
+        };
+        if (method !== 'GET') {
+          headers['Content-Type'] = 'application/json';
+        }
+
         const response = await CapacitorHttp.request({
           url,
           method,
           headers,
           data: options.body ? JSON.parse(options.body) : undefined,
-          connectTimeout: 10000,
-          readTimeout: 10000
+          connectTimeout: 15000,
+          readTimeout: 15000
         });
         
         if (response.status >= 200 && response.status < 300) {
           return response.data;
         }
-        throw new Error(`Native Server Error: ${response.status}`);
+        throw new Error(`Native API Error: ${response.status} ${url}`);
       } else {
         // WEB PATH: Subject to CORS. 
-        const response = await fetch(url, {
+        // We carefully construct the fetch options to avoid 'Failed to fetch' errors
+        const fetchOptions: RequestInit = {
           method,
-          headers,
-          body: options.body,
           mode: 'cors',
-        });
+          credentials: 'omit',
+        };
+
+        const headers: Record<string, string> = { ...options.headers };
+        
+        // For GET requests, we avoid extra headers to stay in the "simple request" category if possible
+        if (method !== 'GET') {
+          headers['Content-Type'] = 'application/json';
+          if (options.body) {
+            fetchOptions.body = options.body;
+          }
+        } else {
+          // Explicitly ensure body is not present on GET
+          delete (fetchOptions as any).body;
+        }
+
+        fetchOptions.headers = headers;
+
+        const response = await fetch(url, fetchOptions);
         
         if (!response.ok) {
-          throw new Error(`Web Fetch Error: ${response.status}`);
+          throw new Error(`Web API Error: ${response.status} ${url}`);
         }
         return await response.json();
       }
     } catch (err: any) {
-      if (!isNative) {
-        console.warn(`[CORS/Network Warning] API call to ${url} failed. If on Web, ensure the server supports CORS. Error: ${err.message}`);
-      } else {
-        console.error(`[Native API Error] ${url}:`, err.message);
-      }
+      console.warn(`[API REQUEST FAILED] ${method} ${url}:`, err.message);
       throw err;
     }
   };
@@ -113,15 +123,14 @@ const App: React.FC = () => {
     if (!API_ENABLED) return;
     setIsLoading(true);
     try {
-      // Append rs_id=179
       const data = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
       if (data && !data.error && Array.isArray(data)) {
         setState(prev => ({ ...prev, tables: data }));
       } else if (data && data.error) {
-        console.error("Server returned API error for tables:", data.error);
+        console.error("Tables API returned logical error:", data.error);
       }
     } catch (err) {
-      // Keep existing
+      // Error is already logged in makeRequest
     } finally {
       setIsLoading(false);
     }
@@ -131,15 +140,16 @@ const App: React.FC = () => {
     if (!API_ENABLED) return;
     setIsLoading(true);
     try {
-      // Append table_no and rs_id=179
       const data = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
       if (data && !data.error && Array.isArray(data)) {
         setState(prev => ({ ...prev, orders: data }));
-      } else if (data && data.error) {
-        console.error("Server returned API error for orders:", data.error);
+      } else {
+        // Clear orders if table is empty or API returns error/null
+        setState(prev => ({ ...prev, orders: [] }));
       }
     } catch (err) {
-      // Keep existing
+      // Clear orders on failure to avoid showing stale data from previous table
+      setState(prev => ({ ...prev, orders: [] }));
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +211,6 @@ const App: React.FC = () => {
     if (API_ENABLED) {
         setIsLoading(true);
         try {
-            // Append rs_id=179 to the POST URL
             const data = await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${STATIC_RS_ID}`, {
                 method: 'POST',
                 body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
@@ -210,18 +219,13 @@ const App: React.FC = () => {
             if (state.currentTable) fetchOrders(state.currentTable);
             return true;
         } catch (err: any) {
-            alert(err.message || "Failed to delete item. Please check your connection.");
+            alert(err.message || "Failed to delete item.");
             return false;
         } finally {
             setIsLoading(false);
         }
     }
-
-    setState(prev => {
-      const newOrders = prev.orders.filter(o => o.id !== itemId);
-      return { ...prev, orders: newOrders };
-    });
-    return true;
+    return false;
   };
 
   const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
@@ -230,7 +234,6 @@ const App: React.FC = () => {
     if (API_ENABLED) {
         setIsLoading(true);
         try {
-            // Append rs_id=179 to the POST URL
             const data = await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${STATIC_RS_ID}`, {
                 method: 'POST',
                 body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
@@ -239,25 +242,13 @@ const App: React.FC = () => {
             fetchOrders(tableNo);
             return true;
         } catch (err: any) {
-            alert(err.message || "Failed to confirm order. Please check your connection.");
+            alert(err.message || "Failed to confirm order.");
             return false;
         } finally {
             setIsLoading(false);
         }
     }
-
-    setState(prev => {
-      const newOrders = prev.orders.map(order => {
-        return order.status === OrderStatus.CART ? { 
-          ...order, 
-          status: OrderStatus.CONFIRMED, 
-          order_taken_by: `Waiter #${waiterCode}`,
-          note: note 
-        } : order;
-      });
-      return { ...prev, orders: newOrders, tables: prev.tables.map(t => t.table_no === tableNo ? {...t, status: 'occupied'} : t) };
-    });
-    return true;
+    return false;
   };
 
   if (state.view === 'splash') {
@@ -294,6 +285,7 @@ const App: React.FC = () => {
                   onClick={fetchTables} 
                   disabled={isLoading}
                   className="p-2 text-slate-300 hover:text-indigo-500 disabled:opacity-50"
+                  aria-label="Refresh Tables"
                 >
                     <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
@@ -311,7 +303,7 @@ const App: React.FC = () => {
       <main className="flex-grow overflow-y-auto">
         {state.currentTable ? (
           <TableView 
-            table={state.tables.find(t => t.table_no === state.currentTable)!}
+            table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable, status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             onBack={handleBack}
             onDelete={handleDeleteItem}
