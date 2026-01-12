@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, OrderItem, OrderStatus, AppState, AppView } from './types';
+import { Table, OrderItem, OrderStatus, AppState } from './types';
 import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import { initialTables, initialOrders } from './constants';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
-// Configuration for API - Toggle to true when PHP backend is ready
-const API_ENABLED = false; 
-const API_BASE_URL = window.location.origin + '/'; 
+// Configuration for API
+const API_ENABLED = true; 
+const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/'; 
+const STATIC_RS_ID = '179';
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -28,7 +30,7 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Catch the install prompt for Android
+  // Catch the install prompt for Android/PWA
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
@@ -47,17 +49,79 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Universal fetch wrapper.
+   * On Native: Uses CapacitorHttp (Bypasses CORS).
+   * On Web: Uses standard fetch (Subject to CORS).
+   */
+  const makeRequest = async (url: string, options: any = {}) => {
+    const method = options.method || 'GET';
+    const isNative = Capacitor.isNativePlatform();
+    
+    // Construct Headers
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      ...options.headers,
+    };
+
+    // Only add Content-Type for write operations to avoid preflight on GET
+    if (method !== 'GET') {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+      if (isNative) {
+        // NATIVE PATH: Bypasses CORS completely
+        const response = await CapacitorHttp.request({
+          url,
+          method,
+          headers,
+          data: options.body ? JSON.parse(options.body) : undefined,
+          connectTimeout: 10000,
+          readTimeout: 10000
+        });
+        
+        if (response.status >= 200 && response.status < 300) {
+          return response.data;
+        }
+        throw new Error(`Native Server Error: ${response.status}`);
+      } else {
+        // WEB PATH: Subject to CORS. 
+        const response = await fetch(url, {
+          method,
+          headers,
+          body: options.body,
+          mode: 'cors',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Web Fetch Error: ${response.status}`);
+        }
+        return await response.json();
+      }
+    } catch (err: any) {
+      if (!isNative) {
+        console.warn(`[CORS/Network Warning] API call to ${url} failed. If on Web, ensure the server supports CORS. Error: ${err.message}`);
+      } else {
+        console.error(`[Native API Error] ${url}:`, err.message);
+      }
+      throw err;
+    }
+  };
+
   const fetchTables = useCallback(async () => {
     if (!API_ENABLED) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const res = await fetch(`${API_BASE_URL}api_tables.php`);
-      const data = await res.json();
-      if (!data.error) {
+      // Append rs_id=179
+      const data = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
+      if (data && !data.error && Array.isArray(data)) {
         setState(prev => ({ ...prev, tables: data }));
+      } else if (data && data.error) {
+        console.error("Server returned API error for tables:", data.error);
       }
     } catch (err) {
-      console.error("Failed to fetch tables", err);
+      // Keep existing
     } finally {
       setIsLoading(false);
     }
@@ -65,15 +129,17 @@ const App: React.FC = () => {
 
   const fetchOrders = useCallback(async (tableNo: string) => {
     if (!API_ENABLED) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const res = await fetch(`${API_BASE_URL}api_orders.php?table_no=${tableNo}`);
-      const data = await res.json();
-      if (!data.error) {
+      // Append table_no and rs_id=179
+      const data = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
+      if (data && !data.error && Array.isArray(data)) {
         setState(prev => ({ ...prev, orders: data }));
+      } else if (data && data.error) {
+        console.error("Server returned API error for orders:", data.error);
       }
     } catch (err) {
-      console.error("Failed to fetch orders", err);
+      // Keep existing
     } finally {
       setIsLoading(false);
     }
@@ -133,19 +199,21 @@ const App: React.FC = () => {
     if (waiterCode.length < 3) return false;
     
     if (API_ENABLED) {
+        setIsLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}api_delete_item.php`, {
+            // Append rs_id=179 to the POST URL
+            const data = await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${STATIC_RS_ID}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
             });
-            const data = await res.json();
             if (data.error) throw new Error(data.error);
             if (state.currentTable) fetchOrders(state.currentTable);
             return true;
         } catch (err: any) {
-            alert(err.message);
+            alert(err.message || "Failed to delete item. Please check your connection.");
             return false;
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -160,19 +228,21 @@ const App: React.FC = () => {
     if (waiterCode.length < 3) return false;
 
     if (API_ENABLED) {
+        setIsLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}api_confirm_order.php`, {
+            // Append rs_id=179 to the POST URL
+            const data = await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${STATIC_RS_ID}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
             });
-            const data = await res.json();
             if (data.error) throw new Error(data.error);
             fetchOrders(tableNo);
             return true;
         } catch (err: any) {
-            alert(err.message);
+            alert(err.message || "Failed to confirm order. Please check your connection.");
             return false;
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -201,7 +271,9 @@ const App: React.FC = () => {
   return (
     <div className="h-full bg-slate-50 text-slate-900 font-sans flex flex-col relative overflow-hidden">
       {isLoading && (
-        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-50 animate-pulse"></div>
+        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-50 overflow-hidden">
+          <div className="w-full h-full bg-indigo-300 animate-[loading_1.5s_infinite_ease-in-out]"></div>
+        </div>
       )}
       
       <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4 flex-shrink-0">
@@ -218,7 +290,11 @@ const App: React.FC = () => {
         )}
         <div className="flex gap-4 items-center">
             {!state.currentTable && (
-                <button onClick={fetchTables} className="p-2 text-slate-300 hover:text-indigo-500">
+                <button 
+                  onClick={fetchTables} 
+                  disabled={isLoading}
+                  className="p-2 text-slate-300 hover:text-indigo-500 disabled:opacity-50"
+                >
                     <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
             )}
@@ -256,6 +332,13 @@ const App: React.FC = () => {
           Powered by <span className="text-indigo-400/60 font-black">Dyna-menu</span>
         </p>
       </footer>
+
+      <style>{`
+        @keyframes loading {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 };
