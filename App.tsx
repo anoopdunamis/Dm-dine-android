@@ -11,12 +11,6 @@ const API_ENABLED = true;
 const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/json/'; 
 const STATIC_RS_ID = '235';
 
-const PROXIES = [
-  { name: 'Direct', prefix: '' },
-  { name: 'CORSProxy.io', prefix: 'https://corsproxy.io/?' },
-  { name: 'AllOrigins', prefix: 'https://api.allorigins.win/raw?url=' }
-];
-
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
@@ -56,22 +50,17 @@ const App: React.FC = () => {
 
   /**
    * Universal fetch wrapper.
-   * On Android/iOS: Uses CapacitorHttp to bypass CORS and Browser-level security.
-   * On Web: Uses standard fetch with proxy fallbacks.
+   * On Android/iOS: Uses CapacitorHttp to bypass CORS.
+   * On Web: Uses standard direct fetch.
    */
-  const makeRequest = async (url: string, options: any = {}, proxyIndex: number = 0) => {
+  const makeRequest = async (url: string, options: any = {}) => {
     const method = options.method || 'GET';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
-    const currentProxy = PROXIES[proxyIndex];
-    const finalUrl = (!isNative && currentProxy.prefix) 
-      ? `${currentProxy.prefix}${encodeURIComponent(url)}` 
-      : url;
-    
     try {
       if (isNative) {
-        // NATIVE REQUEST: Bypasses WebView XSS/CORS
+        // NATIVE REQUEST: Bypasses WebView security restrictions
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -87,7 +76,6 @@ const App: React.FC = () => {
         });
 
         if (response.status >= 200 && response.status < 300) {
-            // Capacitor sometimes returns data as string if content-type is wrong
             if (typeof response.data === 'string') {
                 try {
                     return JSON.parse(response.data);
@@ -99,7 +87,7 @@ const App: React.FC = () => {
         }
         throw new Error(`HTTP ${response.status}`);
       } else {
-        // WEB REQUEST
+        // WEB REQUEST: Directly contacting the API
         const fetchOptions: RequestInit = {
           method,
           credentials: 'omit',
@@ -114,28 +102,29 @@ const App: React.FC = () => {
           if (options.body) fetchOptions.body = options.body;
         }
 
-        const response = await fetch(finalUrl, fetchOptions);
+        const response = await fetch(url, fetchOptions);
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            if (text.toLowerCase().includes('<html')) {
-                throw new Error(`Server Block (403/WAF). Status: ${response.status}`);
-            }
-        }
+        // Read the body once as text to avoid "stream already read" error
+        const text = await response.text();
 
         if (!response.ok) {
+          if (text.toLowerCase().includes('<html')) {
+            throw new Error(`Server Blocked Request. Status: ${response.status}`);
+          }
           throw new Error(`HTTP ${response.status}`);
         }
-        return await response.json();
+
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          if (text.toLowerCase().includes('<html')) {
+            throw new Error(`Server returned HTML instead of JSON (likely a security block).`);
+          }
+          throw new Error("Response was not valid JSON");
+        }
       }
     } catch (err: any) {
-      console.warn(`[DynaSync] Attempt ${proxyIndex + 1} (${currentProxy.name}) failed: ${err.message}`);
-      
-      if (!isNative && proxyIndex < PROXIES.length - 1) {
-        return makeRequest(url, options, proxyIndex + 1);
-      }
-      
+      console.warn(`[DynaSync] Request to ${url} failed: ${err.message}`);
       throw err;
     }
   };
