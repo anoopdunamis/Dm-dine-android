@@ -8,11 +8,18 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 // Configuration for API
 const API_ENABLED = true; 
-const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/'; 
+const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/json/'; 
 const STATIC_RS_ID = '235';
 
-// Public CORS proxy for web-based development/testing
-const CORS_PROXY = 'https://corsproxy.io/?';
+/**
+ * List of proxies to try sequentially if the direct request or previous proxy fails.
+ * Proxies help bypass CORS and sometimes 403 Forbidden errors caused by origin-based blocking.
+ */
+const PROXIES = [
+  { name: 'Direct', prefix: '' },
+  { name: 'CORSProxy.io', prefix: 'https://corsproxy.io/?' },
+  { name: 'AllOrigins', prefix: 'https://api.allorigins.win/raw?url=' }
+];
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -51,23 +58,24 @@ const App: React.FC = () => {
   };
 
   /**
-   * Universal fetch wrapper.
-   * On Web: Standard fetch with minimal headers. If CORS fails, it retries through a proxy.
-   * On Native: CapacitorHttp to bypass CORS entirely.
+   * Universal fetch wrapper with multi-proxy fallback logic.
    */
-  const makeRequest = async (url: string, options: any = {}, useProxy: boolean = false) => {
+  const makeRequest = async (url: string, options: any = {}, proxyIndex: number = 0) => {
     const method = options.method || 'GET';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
-    // Construct final URL
-    const finalUrl = (!isNative && useProxy) ? `${CORS_PROXY}${encodeURIComponent(url)}` : url;
+    // If native, we use CapacitorHttp (no CORS issues).
+    // If web, we try Direct, then Proxies sequentially.
+    const currentProxy = PROXIES[proxyIndex];
+    const finalUrl = (!isNative && currentProxy.prefix) 
+      ? `${currentProxy.prefix}${encodeURIComponent(url)}` 
+      : url;
     
-    console.debug(`[DynaSync API] ${method} Request to: ${finalUrl} (Platform: ${platform}, Proxy: ${useProxy})`);
+    console.debug(`[DynaSync] ${method} attempt ${proxyIndex + 1} (${currentProxy.name}): ${finalUrl}`);
 
     try {
       if (isNative) {
-        // NATIVE PATH: Uses native code to bypass browser CORS restrictions
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -81,12 +89,9 @@ const App: React.FC = () => {
           readTimeout: 15000
         });
 
-        if (response.status >= 200 && response.status < 300) {
-          return response.data;
-        }
-        throw new Error(`Native API Error: ${response.status}`);
+        if (response.status >= 200 && response.status < 300) return response.data;
+        throw new Error(`Status ${response.status}`);
       } else {
-        // WEB PATH
         const fetchOptions: RequestInit = {
           method,
           credentials: 'omit',
@@ -99,24 +104,22 @@ const App: React.FC = () => {
             ...options.headers,
           };
           if (options.body) fetchOptions.body = options.body;
-        } else if (options.headers) {
-          fetchOptions.headers = options.headers;
         }
 
         const response = await fetch(finalUrl, fetchOptions);
         if (!response.ok) {
-          throw new Error(`Web API Error: ${response.status}`);
+          throw new Error(`HTTP ${response.status}`);
         }
         return await response.json();
       }
     } catch (err: any) {
-      // If we failed on web without a proxy, try one last time WITH the proxy
-      if (!isNative && !useProxy && (err.message === 'Failed to fetch' || err.name === 'TypeError')) {
-        console.warn(`[DynaSync] Direct fetch failed (CORS). Retrying with proxy...`);
-        return makeRequest(url, options, true);
+      console.warn(`[DynaSync] ${currentProxy.name} failed: ${err.message}`);
+      
+      // Fallback logic for web: Try the next proxy in the list
+      if (!isNative && proxyIndex < PROXIES.length - 1) {
+        return makeRequest(url, options, proxyIndex + 1);
       }
       
-      console.warn(`[DynaSync API FAILURE] ${method} ${url}:`, err.message);
       throw err;
     }
   };
@@ -126,7 +129,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
-      console.log("Tables Response Received:", response);
+      console.log("Tables Response:", response);
       
       let tableData: any[] = [];
       if (Array.isArray(response)) {
@@ -138,8 +141,7 @@ const App: React.FC = () => {
       }
 
       const mappedTables: Table[] = tableData.map((t: any) => {
-        const rawStatus = String(t.status || '').toLowerCase();
-        // Standardize status based on common API values
+        const rawStatus = String(t.status || t.table_status || '').toLowerCase();
         const isOccupied = rawStatus.includes('occupied') || 
                           rawStatus.includes('busy') || 
                           rawStatus === '1' || 
@@ -157,7 +159,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err) {
-      console.error("fetchTables final failure:", err);
+      console.error("fetchTables ultimate failure:", err);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
@@ -192,7 +194,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
     } catch (err) {
-      console.error("fetchOrders logic failed:", err);
+      console.error("fetchOrders failure:", err);
       setState(prev => ({ ...prev, orders: [] }));
     } finally {
       setIsLoading(false);
@@ -260,7 +262,7 @@ const App: React.FC = () => {
         if (state.currentTable) fetchOrders(state.currentTable);
         return true;
     } catch (err: any) {
-        alert("Action failed. Check connection.");
+        alert("Action failed. Please check network.");
         return false;
     } finally {
         setIsLoading(false);
@@ -278,7 +280,7 @@ const App: React.FC = () => {
         fetchOrders(tableNo);
         return true;
     } catch (err: any) {
-        alert("Action failed. Check connection.");
+        alert("Action failed. Please check network.");
         return false;
     } finally {
         setIsLoading(false);
