@@ -14,6 +14,7 @@ const STATIC_RS_ID = '235';
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state');
     const initialState = saved ? JSON.parse(saved) : null;
@@ -29,6 +30,20 @@ const App: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // Live Clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Error auto-dismiss
+  useEffect(() => {
+    if (errorStatus) {
+      const timer = setTimeout(() => setErrorStatus(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorStatus]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -48,11 +63,6 @@ const App: React.FC = () => {
     }
   };
 
-  /**
-   * Universal fetch wrapper.
-   * On Android/iOS: Uses CapacitorHttp to bypass CORS.
-   * On Web: Uses standard direct fetch.
-   */
   const makeRequest = async (url: string, options: any = {}) => {
     const method = options.method || 'GET';
     const platform = Capacitor.getPlatform();
@@ -60,7 +70,6 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
-        // NATIVE REQUEST: Bypasses WebView security restrictions
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -87,7 +96,6 @@ const App: React.FC = () => {
         }
         throw new Error(`HTTP ${response.status}`);
       } else {
-        // WEB REQUEST: Directly contacting the API
         const fetchOptions: RequestInit = {
           method,
           credentials: 'omit',
@@ -103,28 +111,19 @@ const App: React.FC = () => {
         }
 
         const response = await fetch(url, fetchOptions);
-        
-        // Read the body once as text to avoid "stream already read" error
         const text = await response.text();
 
         if (!response.ok) {
-          if (text.toLowerCase().includes('<html')) {
-            throw new Error(`Server Blocked Request. Status: ${response.status}`);
-          }
           throw new Error(`HTTP ${response.status}`);
         }
 
         try {
           return JSON.parse(text);
         } catch (e) {
-          if (text.toLowerCase().includes('<html')) {
-            throw new Error(`Server returned HTML instead of JSON (likely a security block).`);
-          }
           throw new Error("Response was not valid JSON");
         }
       }
     } catch (err: any) {
-      console.warn(`[DynaSync] Request to ${url} failed: ${err.message}`);
       throw err;
     }
   };
@@ -165,7 +164,6 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err: any) {
       setErrorStatus(err.message);
-      console.error("fetchTables failed:", err.message);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
@@ -305,37 +303,55 @@ const App: React.FC = () => {
   return (
     <div className="h-full bg-slate-50 text-slate-900 font-sans flex flex-col relative overflow-hidden">
       {isLoading && (
-        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-[60] overflow-hidden">
+        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-[70] overflow-hidden">
           <div className="w-full h-full bg-indigo-300 animate-[loading_1.5s_infinite_ease-in-out]"></div>
         </div>
       )}
 
+      {/* Floating Toast System */}
       {errorStatus && (
-          <div className="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest py-1 px-4 text-center z-[55] shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center justify-center gap-2">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              <span>Error: {errorStatus}</span>
-              <button onClick={() => setErrorStatus(null)} className="ml-2 bg-white/20 rounded px-1">✕</button>
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm">
+          <div className="bg-rose-600 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 animate-in slide-in-from-bottom-10 fade-in duration-300">
+            <div className="bg-white/20 p-2 rounded-xl">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">System Alert</p>
+              <p className="text-sm font-bold">{errorStatus}</p>
+            </div>
+            <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg">✕</button>
           </div>
+        </div>
       )}
       
-      <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4 flex-shrink-0">
-        {state.isAuthenticated && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center border border-indigo-200 shadow-inner">
-              <span className="text-indigo-600 font-black text-xs uppercase">{state.userName?.[0]}</span>
+      <div className="max-w-4xl w-full mx-auto flex justify-between items-center px-4 py-3 bg-white/80 backdrop-blur-md border-b border-slate-100 flex-shrink-0 z-50">
+        <div className="flex items-center gap-3">
+          {state.isAuthenticated && (
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 border border-white/20">
+                <span className="text-white font-black text-sm uppercase">{state.userName?.[0]}</span>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Active Staff</p>
+                <p className="text-xs font-black text-slate-700 capitalize leading-tight">{state.userName}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Logged in as</p>
-              <p className="text-xs font-black text-slate-700 capitalize leading-tight">{state.userName}</p>
-            </div>
+          )}
+          <div className="h-6 w-px bg-slate-100 mx-1"></div>
+          <div className="text-right">
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Shift Time</p>
+            <p className="text-xs font-black text-slate-600 tabular-nums">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
           </div>
-        )}
-        <div className="flex gap-4 items-center">
+        </div>
+
+        <div className="flex gap-2 items-center">
             {!state.currentTable && (
                 <button 
                   onClick={fetchTables} 
                   disabled={isLoading}
-                  className="p-2 text-slate-300 hover:text-indigo-500 disabled:opacity-50"
+                  className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-90 disabled:opacity-50"
                   aria-label="Refresh Tables"
                 >
                     <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -343,10 +359,9 @@ const App: React.FC = () => {
             )}
             <button 
                 onClick={handleLogout}
-                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 group"
+                className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg shadow-slate-100"
             >
-                <span>Sign Out</span>
-                <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                Log Out
             </button>
         </div>
       </div>
@@ -370,10 +385,13 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="py-8 text-center bg-slate-50 border-t border-slate-100 flex-shrink-0">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
-          Powered by <span className="text-indigo-400/60 font-black">Dyna-menu</span>
-        </p>
+      <footer className="py-6 text-center bg-white border-t border-slate-100 flex-shrink-0 safe-bottom">
+        <div className="flex flex-col items-center gap-1 opacity-40">
+           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mb-1"></div>
+           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+             Server Status: <span className="text-emerald-600">Secure & Connected</span>
+           </p>
+        </div>
       </footer>
 
       <style>{`
