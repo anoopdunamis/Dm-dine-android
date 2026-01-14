@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dyna-Menu Waiter</string>
+    <string name="title_activity_main">Dyna-Menu Waiter</string>
+    <string name="package_name">com.amplifyapp.d1u6lsw4w5p1dc.main.twa</string>
+    <string name="custom_url_scheme">com.amplifyapp.d1u6lsw4w5p1dc.main.twa</string>
+</resources>
