@@ -11,10 +11,6 @@ const API_ENABLED = true;
 const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/json/'; 
 const STATIC_RS_ID = '235';
 
-/**
- * List of proxies to try sequentially if the direct request or previous proxy fails.
- * Proxies help bypass CORS and sometimes 403 Forbidden errors caused by origin-based blocking.
- */
 const PROXIES = [
   { name: 'Direct', prefix: '' },
   { name: 'CORSProxy.io', prefix: 'https://corsproxy.io/?' },
@@ -23,6 +19,7 @@ const PROXIES = [
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state');
     const initialState = saved ? JSON.parse(saved) : null;
@@ -58,64 +55,83 @@ const App: React.FC = () => {
   };
 
   /**
-   * Universal fetch wrapper with multi-proxy fallback logic.
+   * Universal fetch wrapper.
+   * On Android/iOS: Uses CapacitorHttp to bypass CORS and Browser-level security.
+   * On Web: Uses standard fetch with proxy fallbacks.
    */
   const makeRequest = async (url: string, options: any = {}, proxyIndex: number = 0) => {
     const method = options.method || 'GET';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
-    // If native, we use CapacitorHttp (no CORS issues).
-    // If web, we try Direct, then Proxies sequentially.
     const currentProxy = PROXIES[proxyIndex];
     const finalUrl = (!isNative && currentProxy.prefix) 
       ? `${currentProxy.prefix}${encodeURIComponent(url)}` 
       : url;
     
-    console.debug(`[DynaSync] ${method} attempt ${proxyIndex + 1} (${currentProxy.name}): ${finalUrl}`);
-
     try {
       if (isNative) {
+        // NATIVE REQUEST: Bypasses WebView XSS/CORS
         const response = await CapacitorHttp.request({
           url,
           method,
           headers: {
             'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
             ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
             ...options.headers,
           },
           data: options.body ? JSON.parse(options.body) : undefined,
-          connectTimeout: 15000,
-          readTimeout: 15000
+          connectTimeout: 10000,
+          readTimeout: 10000
         });
 
-        if (response.status >= 200 && response.status < 300) return response.data;
-        throw new Error(`Status ${response.status}`);
+        if (response.status >= 200 && response.status < 300) {
+            // Capacitor sometimes returns data as string if content-type is wrong
+            if (typeof response.data === 'string') {
+                try {
+                    return JSON.parse(response.data);
+                } catch (e) {
+                    throw new Error("Invalid JSON response from server");
+                }
+            }
+            return response.data;
+        }
+        throw new Error(`HTTP ${response.status}`);
       } else {
+        // WEB REQUEST
         const fetchOptions: RequestInit = {
           method,
           credentials: 'omit',
+          headers: {
+            'Accept': 'application/json',
+            ...options.headers
+          }
         };
 
         if (method !== 'GET') {
-          fetchOptions.headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            ...options.headers,
-          };
+          (fetchOptions.headers as any)['Content-Type'] = 'application/json';
           if (options.body) fetchOptions.body = options.body;
         }
 
         const response = await fetch(finalUrl, fetchOptions);
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            if (text.toLowerCase().includes('<html')) {
+                throw new Error(`Server Block (403/WAF). Status: ${response.status}`);
+            }
+        }
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
         return await response.json();
       }
     } catch (err: any) {
-      console.warn(`[DynaSync] ${currentProxy.name} failed: ${err.message}`);
+      console.warn(`[DynaSync] Attempt ${proxyIndex + 1} (${currentProxy.name}) failed: ${err.message}`);
       
-      // Fallback logic for web: Try the next proxy in the list
       if (!isNative && proxyIndex < PROXIES.length - 1) {
         return makeRequest(url, options, proxyIndex + 1);
       }
@@ -127,9 +143,9 @@ const App: React.FC = () => {
   const fetchTables = useCallback(async () => {
     if (!API_ENABLED) return;
     setIsLoading(true);
+    setErrorStatus(null);
     try {
       const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
-      console.log("Tables Response:", response);
       
       let tableData: any[] = [];
       if (Array.isArray(response)) {
@@ -158,8 +174,9 @@ const App: React.FC = () => {
       });
 
       setState(prev => ({ ...prev, tables: mappedTables }));
-    } catch (err) {
-      console.error("fetchTables ultimate failure:", err);
+    } catch (err: any) {
+      setErrorStatus(err.message);
+      console.error("fetchTables failed:", err.message);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
@@ -169,6 +186,7 @@ const App: React.FC = () => {
   const fetchOrders = useCallback(async (tableNo: string) => {
     if (!API_ENABLED) return;
     setIsLoading(true);
+    setErrorStatus(null);
     try {
       const response = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
       
@@ -193,8 +211,8 @@ const App: React.FC = () => {
       }));
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
-    } catch (err) {
-      console.error("fetchOrders failure:", err);
+    } catch (err: any) {
+      setErrorStatus(err.message);
       setState(prev => ({ ...prev, orders: [] }));
     } finally {
       setIsLoading(false);
@@ -262,7 +280,7 @@ const App: React.FC = () => {
         if (state.currentTable) fetchOrders(state.currentTable);
         return true;
     } catch (err: any) {
-        alert("Action failed. Please check network.");
+        setErrorStatus(err.message);
         return false;
     } finally {
         setIsLoading(false);
@@ -280,7 +298,7 @@ const App: React.FC = () => {
         fetchOrders(tableNo);
         return true;
     } catch (err: any) {
-        alert("Action failed. Please check network.");
+        setErrorStatus(err.message);
         return false;
     } finally {
         setIsLoading(false);
@@ -298,9 +316,17 @@ const App: React.FC = () => {
   return (
     <div className="h-full bg-slate-50 text-slate-900 font-sans flex flex-col relative overflow-hidden">
       {isLoading && (
-        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-50 overflow-hidden">
+        <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-[60] overflow-hidden">
           <div className="w-full h-full bg-indigo-300 animate-[loading_1.5s_infinite_ease-in-out]"></div>
         </div>
+      )}
+
+      {errorStatus && (
+          <div className="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest py-1 px-4 text-center z-[55] shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center justify-center gap-2">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span>Error: {errorStatus}</span>
+              <button onClick={() => setErrorStatus(null)} className="ml-2 bg-white/20 rounded px-1">✕</button>
+          </div>
       )}
       
       <div className="max-w-4xl w-full mx-auto flex justify-between items-center p-4 flex-shrink-0">

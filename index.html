@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dyna-Menu Waiter</title>
     
+    <!-- Content Security Policy to prevent XSS errors and allow API/Proxies -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https:; connect-src 'self' https://dm-outlet.com https://corsproxy.io https://api.allorigins.win;">
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,15 +26,14 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Prevent document scroll which triggers pull-to-refresh */
-            overscroll-behavior-y: none; /* Disable pull-to-refresh */
+            overflow: hidden; 
+            overscroll-behavior-y: none; 
             background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Prevent text selection to feel like a native app */
+            user-select: none;
             -webkit-user-select: none;
         }
 
-        /* Re-enable selection for inputs and textareas */
         input, textarea {
             user-select: text;
             -webkit-user-select: text;
@@ -40,11 +42,10 @@
         #root {
             height: 100%;
             width: 100%;
-            overflow-y: auto; /* Enable scrolling only inside the app container */
-            -webkit-overflow-scrolling: touch; /* Smooth inertia scroll for iOS */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
-            /* Support for iOS Safe Areas (Notch) */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
         }
@@ -53,7 +54,6 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* Hide scrollbar for a cleaner "app" look while still allowing scroll */
         #root::-webkit-scrollbar {
             display: none;
         }
