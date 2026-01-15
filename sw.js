@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dynamenu-v1';
+const CACHE_NAME = 'dynamenu-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,9 +14,24 @@ self.addEventListener('install', (event) => {
   );
 });
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
-  // Only intercept GET requests. Attempting to fetch/clone POST requests in SW
-  // can lead to "Failed to fetch" errors due to body handling issues.
+  // CRITICAL: Only handle GET requests. 
+  // POST requests should never be intercepted by the cache logic 
+  // as it often causes "Failed to fetch" due to body-consumption restrictions.
   if (event.request.method !== 'GET') {
     return;
   }

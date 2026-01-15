@@ -69,6 +69,7 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
+        // Native context (iOS/Android) bypasses CORS automatically
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -85,13 +86,14 @@ const App: React.FC = () => {
         if (response.status >= 200 && response.status < 300) {
             return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
         }
-        throw new Error(response.data?.message || `Server Error ${response.status}`);
+        throw new Error(response.data?.message || `Server Status ${response.status}`);
       } else {
-        // Browser Mode: Force "Simple Request" protocol to maximize CORS compatibility
+        // Web/Browser Context: Robust CORS Fetch
         const fetchOptions: RequestInit = {
           method,
-          // Let browser handle mode and credentials automatically for better compatibility
-          referrerPolicy: "no-referrer",
+          mode: 'cors',
+          credentials: 'omit', // Crucial for '*' Access-Control-Allow-Origin
+          headers: {}
         };
 
         if (method === 'POST' && options.body) {
@@ -100,8 +102,8 @@ const App: React.FC = () => {
             const params = new URLSearchParams();
             Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
             fetchOptions.body = params;
-            // IMPORTANT: We do NOT set headers manually. URLSearchParams automatically sets 
-            // application/x-www-form-urlencoded, making this a "Simple Request" that bypasses preflight OPTIONS.
+            // No need to set Content-Type header manually for URLSearchParams, 
+            // the browser sets it to application/x-www-form-urlencoded.
           } catch (e) {
             fetchOptions.body = options.body;
           }
@@ -110,34 +112,30 @@ const App: React.FC = () => {
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
 
-        // Robust JSON extraction: strip HTML errors or PHP notices prepended to output
-        const jsonStart = text.indexOf('{');
-        const jsonEnd = text.lastIndexOf('}');
-        const arrayStart = text.indexOf('[');
-        const arrayEnd = text.lastIndexOf(']');
+        // Robust JSON parser to handle PHP error noise or whitespace
+        const jsonStart = Math.max(text.indexOf('{'), text.indexOf('['));
+        const jsonEnd = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
         
         let cleanText = text;
         if (jsonStart !== -1 && jsonEnd > jsonStart) {
             cleanText = text.substring(jsonStart, jsonEnd + 1);
-        } else if (arrayStart !== -1 && arrayEnd > arrayStart) {
-            cleanText = text.substring(arrayStart, arrayEnd + 1);
         }
 
         if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         try {
           return JSON.parse(cleanText);
         } catch (e) {
-          console.error("Malformed Response Content:", text);
-          throw new Error("Server returned an invalid data format.");
+          console.error("Parse Error. Raw text:", text);
+          throw new Error("Server response was not valid JSON. Possible PHP script error.");
         }
       }
     } catch (err: any) {
-      console.error(`Fetch failure [${method}] to ${url}:`, err);
+      console.error(`Request Failed [${method}] ${url}:`, err);
       if (err.message === 'Failed to fetch') {
-        throw new Error('Connection Blocked: The server refused the request (CORS/SSL issues).');
+        throw new Error('Connection Aborted. Please check server CORS headers or SSL certificate validity.');
       }
       throw err;
     }
@@ -169,7 +167,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err: any) {
-      setErrorStatus(`Sync Failed: ${err.message}`);
+      setErrorStatus(`Table Sync: ${err.message}`);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
@@ -202,7 +200,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
     } catch (err: any) {
-      setErrorStatus(`Orders Failure: ${err.message}`);
+      setErrorStatus(`Order Sync: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -253,7 +251,7 @@ const App: React.FC = () => {
             }));
             return true;
         } else {
-            throw new Error(response.message || response.error || 'Invalid credentials provided');
+            throw new Error(response.message || response.error || 'Authentication Denied');
         }
     } catch (err: any) {
         setErrorStatus(err.message);
@@ -298,7 +296,7 @@ const App: React.FC = () => {
         if (state.currentTable) fetchOrders(state.currentTable);
         return true;
     } catch (err: any) {
-        setErrorStatus(`Delete Failure: ${err.message}`);
+        setErrorStatus(`Delete Error: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
@@ -316,7 +314,7 @@ const App: React.FC = () => {
         fetchOrders(tableNo);
         return true;
     } catch (err: any) {
-        setErrorStatus(`Confirm Failure: ${err.message}`);
+        setErrorStatus(`Confirm Error: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
@@ -341,7 +339,7 @@ const App: React.FC = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Connection Handshake</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Connection Error</p>
               <p className="text-sm font-bold leading-snug break-words">{errorStatus}</p>
             </div>
             <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg flex-shrink-0">✕</button>
@@ -364,7 +362,7 @@ const App: React.FC = () => {
           )}
           <div className="h-6 w-px bg-slate-100 mx-1"></div>
           <div className="text-right">
-            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Status</p>
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Sync</p>
             <p className="text-xs font-black text-slate-600 tabular-nums">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
@@ -403,7 +401,7 @@ const App: React.FC = () => {
 
       <footer className="py-6 text-center bg-white border-t border-slate-100 flex-shrink-0 safe-bottom">
         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-          Sync Node: <span className="text-slate-800 font-bold">{state.rsId || 'PENDING'}</span>
+          Sync Point: <span className="text-slate-800 font-bold">{state.rsId || 'AUTH_REQD'}</span>
         </p>
       </footer>
 
