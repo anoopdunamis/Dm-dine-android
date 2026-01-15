@@ -69,7 +69,6 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
-        // Native context (iOS/Android) bypasses CORS automatically
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -88,12 +87,10 @@ const App: React.FC = () => {
         }
         throw new Error(response.data?.message || `Server Status ${response.status}`);
       } else {
-        // Web/Browser Context: Robust CORS Fetch
         const fetchOptions: RequestInit = {
           method,
           mode: 'cors',
-          credentials: 'omit', // Crucial for '*' Access-Control-Allow-Origin
-          headers: {}
+          credentials: 'omit',
         };
 
         if (method === 'POST' && options.body) {
@@ -102,8 +99,6 @@ const App: React.FC = () => {
             const params = new URLSearchParams();
             Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
             fetchOptions.body = params;
-            // No need to set Content-Type header manually for URLSearchParams, 
-            // the browser sets it to application/x-www-form-urlencoded.
           } catch (e) {
             fetchOptions.body = options.body;
           }
@@ -112,9 +107,18 @@ const App: React.FC = () => {
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
 
-        // Robust JSON parser to handle PHP error noise or whitespace
-        const jsonStart = Math.max(text.indexOf('{'), text.indexOf('['));
-        const jsonEnd = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
+        // Extract JSON block in case of PHP warnings/errors in the response stream
+        const firstBrace = text.indexOf('{');
+        const firstBracket = text.indexOf('[');
+        let jsonStart = -1;
+        
+        if (firstBrace !== -1 && firstBracket !== -1) jsonStart = Math.min(firstBrace, firstBracket);
+        else if (firstBrace !== -1) jsonStart = firstBrace;
+        else if (firstBracket !== -1) jsonStart = firstBracket;
+
+        const lastBrace = text.lastIndexOf('}');
+        const lastBracket = text.lastIndexOf(']');
+        const jsonEnd = Math.max(lastBrace, lastBracket);
         
         let cleanText = text;
         if (jsonStart !== -1 && jsonEnd > jsonStart) {
@@ -122,20 +126,20 @@ const App: React.FC = () => {
         }
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP ${response.status}`);
         }
 
         try {
           return JSON.parse(cleanText);
         } catch (e) {
-          console.error("Parse Error. Raw text:", text);
-          throw new Error("Server response was not valid JSON. Possible PHP script error.");
+          console.error("Parse failure. Raw output:", text);
+          throw new Error("Invalid Server Response format.");
         }
       }
     } catch (err: any) {
-      console.error(`Request Failed [${method}] ${url}:`, err);
+      console.error(`Request Failed:`, err);
       if (err.message === 'Failed to fetch') {
-        throw new Error('Connection Aborted. Please check server CORS headers or SSL certificate validity.');
+        throw new Error('Connection Error: Check server CORS configuration.');
       }
       throw err;
     }
@@ -206,12 +210,15 @@ const App: React.FC = () => {
     }
   }, [state.rsId]);
 
+  // Handle Splash Screen to Initial Page transition
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setState(prev => ({ ...prev, view: prev.isAuthenticated ? 'main' : 'login' }));
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [state.isAuthenticated]);
+    if (state.view === 'splash') {
+        const timer = setTimeout(() => {
+            setState(prev => ({ ...prev, view: prev.isAuthenticated ? 'main' : 'login' }));
+        }, 2500);
+        return () => clearTimeout(timer);
+    }
+  }, [state.view, state.isAuthenticated]);
 
   useEffect(() => {
     if (state.view === 'main' && !state.currentTable && state.rsId) {
@@ -233,20 +240,29 @@ const App: React.FC = () => {
             body: JSON.stringify({ username: user, password: pass })
         });
 
-        if (response.status === 'success' || (response.rs_id && !response.error)) {
-            const rsId = String(response.rs_id || response.rsId);
+        // Specific handling for the sample response structure:
+        // { success: true, user: { id: "396", rs_id: "234", ... } }
+        const userData = response.user || {};
+        const rsId = String(userData.rs_id || response.rs_id || response.rsId || response.RS_ID || '');
+        const userId = String(userData.id || response.user_id || response.id || response.USER_ID || '');
+        
+        // Success check: specifically check boolean 'success' as per user request
+        const isSuccess = response.success === true || response.status === 'success' || (rsId && !response.error);
+
+        if (isSuccess) {
             const userInfo: UserInfo = {
-                id: String(response.user_id || response.id || ''),
-                name: response.user_name || response.name || user,
-                role: response.role || response.user_role || 'Staff',
+                id: userId,
+                name: userData.name || response.user_name || response.name || user,
+                role: userData.user_type === '1' ? 'Admin' : (response.role || response.user_role || 'Staff'),
                 restaurantName: response.restaurant_name || response.outlet_name || null
             };
 
+            // CRITICAL: SET VIEW TO MAIN IMMEDIATELY TO TRIGGER REDIRECT
             setState(prev => ({
                 ...prev,
                 isAuthenticated: true,
                 user: userInfo,
-                rsId: rsId,
+                rsId: rsId || prev.rsId,
                 view: 'main'
             }));
             return true;
@@ -339,7 +355,7 @@ const App: React.FC = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Connection Error</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Sync Status</p>
               <p className="text-sm font-bold leading-snug break-words">{errorStatus}</p>
             </div>
             <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg flex-shrink-0">✕</button>
@@ -362,7 +378,7 @@ const App: React.FC = () => {
           )}
           <div className="h-6 w-px bg-slate-100 mx-1"></div>
           <div className="text-right">
-            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Sync</p>
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Status</p>
             <p className="text-xs font-black text-slate-600 tabular-nums">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
