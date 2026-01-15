@@ -10,15 +10,17 @@ interface TableViewProps {
   onDelete: (id: string, code: string) => Promise<boolean> | boolean;
   onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
   onConfirmItem: (id: string, code: string, note: string) => Promise<boolean> | boolean;
+  onConfirmAll: (code: string, note: string) => Promise<boolean> | boolean;
 }
 
-const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack, onDelete, onConfirm, onConfirmItem }) => {
-  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | null>(null);
+const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack, onDelete, onConfirm, onConfirmItem, onConfirmAll }) => {
+  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const cartItems = orders.filter(o => o.status === OrderStatus.CART);
   const activeItems = orders.filter(o => o.status !== OrderStatus.CART);
+  const hasPlacedItems = activeItems.some(item => item.status === OrderStatus.OCCUPIED);
 
   const calculateTotal = (items: OrderItem[]) => items.reduce((sum, item) => sum + (item.food_item_price * item.food_quantity), 0);
   
@@ -39,6 +41,10 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
           if (await onConfirmItem(targetId, code, note || '')) {
             setModalType(null);
             setTargetId(null);
+          }
+        } else if (modalType === 'confirm_all') {
+          if (await onConfirmAll(code, note || '')) {
+            setModalType(null);
           }
         } else if (modalType === 'confirm') {
           if (await onConfirm(table.table_no, code, note || '')) {
@@ -117,7 +123,17 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
           <section className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="bg-slate-900 px-5 py-3 flex justify-between items-center text-white">
               <span className="text-[10px] font-black uppercase tracking-widest">Order Details</span>
-              <span className="text-[10px] font-black bg-indigo-600 px-2 py-0.5 rounded-lg">LIVE</span>
+              <div className="flex items-center gap-2">
+                {hasPlacedItems && (
+                  <button 
+                    onClick={() => setModalType('confirm_all')}
+                    className="text-[9px] font-black bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg uppercase tracking-tight transition-colors"
+                  >
+                    Confirm All
+                  </button>
+                )}
+                <span className="text-[10px] font-black border border-white/20 px-2 py-0.5 rounded-lg">LIVE</span>
+              </div>
             </div>
             <div className="divide-y divide-slate-50">
               {activeItems.map(item => (
@@ -162,7 +178,7 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
 
       {modalType && (
         <VerificationModal 
-          type={(modalType === 'confirm' || modalType === 'confirm_item') ? 'confirm' : 'delete'}
+          type={(modalType === 'confirm' || modalType === 'confirm_item' || modalType === 'confirm_all') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}
           onConfirm={handleAction}
         />

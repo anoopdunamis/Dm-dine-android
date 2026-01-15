@@ -287,6 +287,30 @@ const App: React.FC = () => {
     } catch (err: any) { setErrorStatus(`Confirm failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
+  const handleConfirmAllItems = async (waiterCode: string, note: string) => {
+    if (!state.rsId || !state.currentTable) return false;
+    setIsLoading(true);
+    try {
+      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
+      await makeRequest(`${API_BASE_URL}api_confirm_all_items.php`, {
+        body: JSON.stringify({ 
+          rs_id: state.rsId, 
+          master_order_id: mId, 
+          waiter_code: waiterCode, 
+          note 
+        })
+      });
+      fetchOrders(state.currentTable, mId);
+      return true;
+    } catch (err: any) {
+      setErrorStatus(`Bulk Confirm failed: ${err.message}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
     if (!state.rsId) return false;
     setIsLoading(true);
@@ -326,6 +350,7 @@ const App: React.FC = () => {
             onDelete={handleDeleteItem}
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
+            onConfirmAll={handleConfirmAllItems}
           />
         ) : <Dashboard tables={state.tables} orders={state.orders} onSelectTable={handleSelectTable} restaurantName={state.user.restaurantName} />}
       </main>
