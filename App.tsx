@@ -69,6 +69,8 @@ const App: React.FC = () => {
    * Robust JSON extraction to handle PHP noise (warnings/notices)
    */
   const cleanJsonResponse = (text: string): string => {
+    if (typeof text !== 'string') return JSON.stringify(text);
+    
     const firstBrace = text.indexOf('{');
     const firstBracket = text.indexOf('[');
     let jsonStart = -1;
@@ -91,36 +93,35 @@ const App: React.FC = () => {
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
-    // Prepare body for x-www-form-urlencoded
-    let bodyObj: Record<string, string> = {};
+    // Convert body to URLSearchParams for application/x-www-form-urlencoded
+    const params = new URLSearchParams();
     if (options.body) {
       try {
-        bodyObj = JSON.parse(options.body);
+        const bodyObj = JSON.parse(options.body);
+        Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
       } catch (e) {
-        console.error("Failed to parse local body string", e);
+        console.error("Payload parse error", e);
       }
     }
 
-    const params = new URLSearchParams();
-    Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
+    const serializedBody = params.toString();
     
     try {
       if (isNative) {
+        // Explicitly use CapacitorHttp for mobile to bypass CORS and handle cookies if needed
         const response = await CapacitorHttp.request({
           url,
           method,
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...options.headers,
+            'Content-Type': 'application/x-www-form-urlencoded'
           },
-          // For form-urlencoded in CapacitorHttp, send the parameters as an object or serialized string
-          data: bodyObj, 
-          connectTimeout: 15000,
-          readTimeout: 15000
+          data: serializedBody, 
+          connectTimeout: 20000,
+          readTimeout: 20000
         });
 
-        // Always clean the response data in case of PHP warnings on native
+        // Clean potentially noisy PHP output on native
         const rawData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
         const cleanedText = cleanJsonResponse(rawData);
 
@@ -129,10 +130,10 @@ const App: React.FC = () => {
             return JSON.parse(cleanedText);
           } catch (e) {
             console.error("Native Parse failure:", rawData);
-            throw new Error("Invalid response format.");
+            throw new Error("Invalid server response format.");
           }
         }
-        throw new Error(response.data?.message || `Server Error (${response.status})`);
+        throw new Error(response.data?.message || `Server Error ${response.status}`);
       } else {
         const fetchOptions: RequestInit = {
           method,
@@ -140,9 +141,9 @@ const App: React.FC = () => {
           credentials: 'omit',
           headers: {
             'Accept': 'application/json',
-            // Simple Request (no preflight) if using URLSearchParams
+            'Content-Type': 'application/x-www-form-urlencoded'
           },
-          body: params
+          body: serializedBody
         };
 
         const response = await fetch(url, fetchOptions);
@@ -152,17 +153,17 @@ const App: React.FC = () => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         try {
-          if (!cleanedText.trim()) throw new Error("Empty response body.");
+          if (!cleanedText.trim()) throw new Error("Empty response from server.");
           return JSON.parse(cleanedText);
         } catch (e) {
-          console.error("Web Parse failure raw response:", text);
-          throw new Error("Invalid response format.");
+          console.error("Web Parse failure:", text);
+          throw new Error("Could not read server response.");
         }
       }
     } catch (err: any) {
-      console.error(`Request Failed [${url}]:`, err);
-      if (err.message === 'Failed to fetch') {
-        throw new Error('Sync failed. Check connection.');
+      console.error(`API Error [${url}]:`, err);
+      if (err.message.includes('Failed to fetch')) {
+        throw new Error('Connection failed. Please check your network.');
       }
       throw err;
     }
@@ -177,9 +178,7 @@ const App: React.FC = () => {
       });
       
       let tableData: any[] = [];
-      if (response && response.success && Array.isArray(response.tables)) {
-        tableData = response.tables;
-      } else if (response && Array.isArray(response.tables)) {
+      if (response && response.tables && Array.isArray(response.tables)) {
         tableData = response.tables;
       } else if (Array.isArray(response)) {
         tableData = response;
@@ -324,7 +323,7 @@ const App: React.FC = () => {
             }));
             return true;
         } else {
-            throw new Error(response.message || 'Invalid Credentials');
+            throw new Error(response.message || 'Invalid username or password.');
         }
     } catch (err: any) {
         setErrorStatus(err.message);
@@ -378,7 +377,7 @@ const App: React.FC = () => {
         }
         return true;
     } catch (err: any) {
-        setErrorStatus(`Delete Error: ${err.message}`);
+        setErrorStatus(`Delete failed: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
@@ -402,7 +401,7 @@ const App: React.FC = () => {
         fetchOrders(tableNo, currentT?.master_order_id);
         return true;
     } catch (err: any) {
-        setErrorStatus(`Confirm Error: ${err.message}`);
+        setErrorStatus(`Confirmation failed: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
