@@ -39,7 +39,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (errorStatus) {
-      const timer = setTimeout(() => setErrorStatus(null), 10000);
+      const timer = setTimeout(() => setErrorStatus(null), 8000);
       return () => clearTimeout(timer);
     }
   }, [errorStatus]);
@@ -62,8 +62,13 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Universal request handler
+   * Uses URLSearchParams for POST on web to avoid CORS preflight (Simple Request)
+   */
   const makeRequest = async (url: string, options: any = {}) => {
-    const method = options.method || 'GET';
+    // Force method to POST for all calls except where explicitly GET
+    const method = options.method || 'POST';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
@@ -74,7 +79,7 @@ const App: React.FC = () => {
           method,
           headers: {
             'Accept': 'application/json',
-            ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
+            'Content-Type': 'application/json',
             ...options.headers,
           },
           data: options.body ? JSON.parse(options.body) : undefined,
@@ -93,25 +98,28 @@ const App: React.FC = () => {
           credentials: 'omit',
         };
 
-        if (method === 'POST' && options.body) {
-          try {
-            const bodyObj = JSON.parse(options.body);
-            const params = new URLSearchParams();
-            Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
-            fetchOptions.body = params;
-          } catch (e) {
-            fetchOptions.body = options.body;
+        if (method === 'POST') {
+          const params = new URLSearchParams();
+          if (options.body) {
+            try {
+              const bodyObj = JSON.parse(options.body);
+              Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
+            } catch (e) {
+              // Fallback if body is not JSON
+            }
           }
+          fetchOptions.body = params;
+          // IMPORTANT: Do NOT set Content-Type header. 
+          // Browser will set it to application/x-www-form-urlencoded, making it a "Simple Request".
         }
 
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
 
-        // Extract JSON block in case of PHP warnings/errors in the response stream
+        // Extract JSON block (handles PHP noise/warnings)
         const firstBrace = text.indexOf('{');
         const firstBracket = text.indexOf('[');
         let jsonStart = -1;
-        
         if (firstBrace !== -1 && firstBracket !== -1) jsonStart = Math.min(firstBrace, firstBracket);
         else if (firstBrace !== -1) jsonStart = firstBrace;
         else if (firstBracket !== -1) jsonStart = firstBracket;
@@ -132,14 +140,14 @@ const App: React.FC = () => {
         try {
           return JSON.parse(cleanText);
         } catch (e) {
-          console.error("Parse failure. Raw output:", text);
-          throw new Error("Invalid Server Response format.");
+          console.error("Parse failure:", text);
+          throw new Error("Invalid response format from server.");
         }
       }
     } catch (err: any) {
       console.error(`Request Failed:`, err);
       if (err.message === 'Failed to fetch') {
-        throw new Error('Connection Error: Check server CORS configuration.');
+        throw new Error('Connection error. The server might be unreachable or CORS is blocking the request.');
       }
       throw err;
     }
@@ -150,22 +158,28 @@ const App: React.FC = () => {
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${state.rsId}`);
+      // POST request for tables
+      const response = await makeRequest(`${API_BASE_URL}api_tables.php`, {
+        method: 'POST',
+        body: JSON.stringify({ rs_id: state.rsId })
+      });
       
       let tableData: any[] = [];
-      if (Array.isArray(response)) tableData = response;
-      else if (response?.data && Array.isArray(response.data)) tableData = response.data;
-      else if (response?.tables && Array.isArray(response.tables)) tableData = response.tables;
+      if (response && response.success && Array.isArray(response.tables)) {
+        tableData = response.tables;
+      } else if (response && Array.isArray(response.tables)) {
+        tableData = response.tables;
+      } else if (Array.isArray(response)) {
+        tableData = response;
+      }
 
       const mappedTables: Table[] = tableData.map((t: any) => {
-        const rawStatus = String(t.status || t.table_status || t.tab_status || '').toLowerCase();
-        const isOccupied = rawStatus.includes('occupied') || rawStatus.includes('busy') || rawStatus === '1' || rawStatus === 'active';
-        
+        const rawStatus = String(t.status || '').toLowerCase();
         return {
-          table_no: String(t.table_no || t.no || t.table_id || t.id || '??'),
-          status: isOccupied ? 'occupied' : 'inactive',
-          guest_count: Number(t.guest_count || t.guests) || 0,
-          tax: Number(t.tax || t.service_charge || 0)
+          table_no: String(t.table_no || t.id || '??'),
+          status: (rawStatus === 'occupied' || rawStatus === '1') ? 'occupied' : 'inactive',
+          guest_count: Number(t.guest_count || 0),
+          tax: Number(t.tax || 0)
         };
       });
 
@@ -183,23 +197,32 @@ const App: React.FC = () => {
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      const response = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${state.rsId}`);
+      // POST request for orders
+      const response = await makeRequest(`${API_BASE_URL}api_orders.php`, {
+        method: 'POST',
+        body: JSON.stringify({ table_no: tableNo, rs_id: state.rsId })
+      });
       
       let orderData: any[] = [];
-      if (Array.isArray(response)) orderData = response;
-      else if (response?.data && Array.isArray(response.data)) orderData = response.data;
+      if (response && response.success && Array.isArray(response.orders)) {
+        orderData = response.orders;
+      } else if (Array.isArray(response)) {
+        orderData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        orderData = response.data;
+      }
 
       const mappedOrders: OrderItem[] = orderData.map((o: any) => ({
-        id: String(o.id || o.sub_id || Math.random().toString(36).substr(2, 9)),
-        food_name: o.food_name || o.item_name || 'Item',
-        food_item_price: Number(o.food_item_price || o.price) || 0,
-        food_quantity: Number(o.food_quantity || o.quantity || 1) || 1,
+        id: String(o.id || Math.random().toString(36).substr(2, 9)),
+        food_name: o.food_name || 'Item',
+        food_item_price: Number(o.food_item_price || 0),
+        food_quantity: Number(o.food_quantity || 1),
         status: (o.status as OrderStatus) || OrderStatus.CONFIRMED,
         sub_id: String(o.sub_id || ''),
         master_order_id: String(o.master_order_id || ''),
         preferences: Array.isArray(o.preferences) ? o.preferences : [],
-        order_taken_by: o.order_taken_by || o.waiter || 'Staff',
-        note: o.note || o.instruction || ''
+        order_taken_by: o.order_taken_by || 'Staff',
+        note: o.note || ''
       }));
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
@@ -210,12 +233,12 @@ const App: React.FC = () => {
     }
   }, [state.rsId]);
 
-  // Handle Splash Screen to Initial Page transition
+  // Handle Initial State & Routing
   useEffect(() => {
     if (state.view === 'splash') {
         const timer = setTimeout(() => {
             setState(prev => ({ ...prev, view: prev.isAuthenticated ? 'main' : 'login' }));
-        }, 2500);
+        }, 2000);
         return () => clearTimeout(timer);
     }
   }, [state.view, state.isAuthenticated]);
@@ -240,34 +263,31 @@ const App: React.FC = () => {
             body: JSON.stringify({ username: user, password: pass })
         });
 
-        // Specific handling for the sample response structure:
-        // { success: true, user: { id: "396", rs_id: "234", ... } }
+        // Parse nested user structure from sample: { success: true, user: { rs_id: "234", ... } }
         const userData = response.user || {};
-        const rsId = String(userData.rs_id || response.rs_id || response.rsId || response.RS_ID || '');
-        const userId = String(userData.id || response.user_id || response.id || response.USER_ID || '');
+        const rsId = String(userData.rs_id || response.rs_id || '');
+        const userId = String(userData.id || userData.user_id || '');
         
-        // Success check: specifically check boolean 'success' as per user request
-        const isSuccess = response.success === true || response.status === 'success' || (rsId && !response.error);
+        const isSuccess = response.success === true || response.status === 'success';
 
-        if (isSuccess) {
+        if (isSuccess && rsId) {
             const userInfo: UserInfo = {
                 id: userId,
-                name: userData.name || response.user_name || response.name || user,
-                role: userData.user_type === '1' ? 'Admin' : (response.role || response.user_role || 'Staff'),
-                restaurantName: response.restaurant_name || response.outlet_name || null
+                name: userData.name || user,
+                role: userData.user_type === '1' ? 'Admin' : 'Staff',
+                restaurantName: response.restaurant_name || null
             };
 
-            // CRITICAL: SET VIEW TO MAIN IMMEDIATELY TO TRIGGER REDIRECT
             setState(prev => ({
                 ...prev,
                 isAuthenticated: true,
                 user: userInfo,
-                rsId: rsId || prev.rsId,
+                rsId: rsId,
                 view: 'main'
             }));
             return true;
         } else {
-            throw new Error(response.message || response.error || 'Authentication Denied');
+            throw new Error(response.message || 'Invalid Credentials');
         }
     } catch (err: any) {
         setErrorStatus(err.message);
@@ -305,9 +325,9 @@ const App: React.FC = () => {
     if (waiterCode.length < 3 || !state.rsId) return false;
     setIsLoading(true);
     try {
-        await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${state.rsId}`, {
+        await makeRequest(`${API_BASE_URL}api_delete_item.php`, {
             method: 'POST',
-            body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
+            body: JSON.stringify({ rs_id: state.rsId, item_id: itemId, waiter_code: waiterCode })
         });
         if (state.currentTable) fetchOrders(state.currentTable);
         return true;
@@ -323,9 +343,9 @@ const App: React.FC = () => {
     if (waiterCode.length < 3 || !state.rsId) return false;
     setIsLoading(true);
     try {
-        await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${state.rsId}`, {
+        await makeRequest(`${API_BASE_URL}api_confirm_order.php`, {
             method: 'POST',
-            body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
+            body: JSON.stringify({ rs_id: state.rsId, table_no: tableNo, waiter_code: waiterCode, note })
         });
         fetchOrders(tableNo);
         return true;
@@ -355,7 +375,7 @@ const App: React.FC = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Sync Status</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Sync Warning</p>
               <p className="text-sm font-bold leading-snug break-words">{errorStatus}</p>
             </div>
             <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg flex-shrink-0">✕</button>
@@ -378,7 +398,7 @@ const App: React.FC = () => {
           )}
           <div className="h-6 w-px bg-slate-100 mx-1"></div>
           <div className="text-right">
-            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Status</p>
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Sync</p>
             <p className="text-xs font-black text-slate-600 tabular-nums">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
