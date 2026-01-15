@@ -76,7 +76,7 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
              </span>
           </div>
           <div className="flex-1 px-4 py-2.5">
-             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Order Time</p>
+             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Entry Time</p>
              <span className="text-[11px] font-black text-slate-700 uppercase">
                 {orderInfo?.placed_time?.split(' ')[1] || '--:--'}
              </span>
@@ -105,6 +105,13 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
               {cartItems.map(item => (
                 <div key={item.id} className="p-5 flex justify-between items-start gap-4 hover:bg-slate-50 transition-colors">
                   <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {item.food_type && (
+                         <div className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase ${item.food_type.toLowerCase() === 'veg' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'border-rose-200 text-rose-600 bg-rose-50'}`}>
+                            {item.food_type}
+                         </div>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-bold text-lg text-slate-900 break-words">{item.food_name}</span>
                         <span className="text-slate-400 font-black text-sm">×{item.food_quantity}</span>
@@ -138,11 +145,11 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
         )}
 
         {/* Active Items Section */}
-        {activeItems.length > 0 && (
+        {activeItems.length > 0 ? (
           <section className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="bg-slate-900 px-5 py-3 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Orders</span>
-              <span className="text-[10px] font-black text-white px-2 py-0.5 rounded-lg bg-indigo-600 uppercase">Confirmed</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirmed Items</span>
+              <span className="text-[10px] font-black text-white px-2 py-0.5 rounded-lg bg-indigo-600 uppercase">Active</span>
             </div>
             <div className="divide-y divide-slate-50">
               {activeItems.map(item => (
@@ -151,6 +158,9 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
                     <div className="flex items-center gap-2 mb-1">
                        <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.status}</span>
+                       {item.food_type && (
+                         <span className={`text-[8px] font-black uppercase ml-1 ${item.food_type.toLowerCase() === 'veg' ? 'text-emerald-500' : 'text-rose-500'}`}>• {item.food_type}</span>
+                       )}
                     </div>
                     <div className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-bold text-lg text-slate-900 break-words">{item.food_name}</span>
@@ -170,28 +180,39 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
               ))}
             </div>
           </section>
+        ) : (
+          !cartItems.length && (
+            <div className="py-12 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
+               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+               </div>
+               <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No active orders</p>
+            </div>
+          )
         )}
 
         {/* Totals Breakdown */}
-        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-3">
-          <div className="flex justify-between items-center text-sm font-bold text-slate-500">
-             <span className="uppercase tracking-widest text-[10px]">Subtotal Items</span>
-             <span className="text-slate-900">AED {activeTotal + cartTotal}</span>
-          </div>
-          <div className="flex justify-between items-center text-sm font-bold text-slate-500">
-             <span className="uppercase tracking-widest text-[10px]">Tax & Service</span>
-             <span className="text-slate-900">AED {taxValue}</span>
-          </div>
-          <div className="pt-3 border-t border-slate-50 flex justify-between items-end">
-            <div>
-              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Current Bill</p>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tighter">Grand Total</h3>
+        {(activeItems.length > 0 || cartItems.length > 0) && (
+          <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-3">
+            <div className="flex justify-between items-center text-sm font-bold text-slate-500">
+               <span className="uppercase tracking-widest text-[10px]">Subtotal Items</span>
+               <span className="text-slate-900">AED {activeTotal + cartTotal}</span>
             </div>
-            <div className="text-right">
-              <span className="text-3xl font-black text-indigo-600 tracking-tighter">AED {grandTotal}</span>
+            <div className="flex justify-between items-center text-sm font-bold text-slate-500">
+               <span className="uppercase tracking-widest text-[10px]">Tax & Service</span>
+               <span className="text-slate-900">AED {taxValue}</span>
+            </div>
+            <div className="pt-3 border-t border-slate-50 flex justify-between items-end">
+              <div>
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none mb-1">Current Bill</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tighter">Grand Total</h3>
+              </div>
+              <div className="text-right">
+                <span className="text-3xl font-black text-indigo-600 tracking-tighter">AED {grandTotal}</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {modalType && (

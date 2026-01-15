@@ -21,6 +21,8 @@ export interface OrderItem {
   master_order_id: string;
   order_taken_by?: string;
   note?: string;
+  food_type?: string;
+  food_image?: string;
 }
 
 export interface OrderInfo {

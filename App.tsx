@@ -65,10 +65,44 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Robust JSON extraction to handle PHP noise (warnings/notices)
+   */
+  const cleanJsonResponse = (text: string): string => {
+    const firstBrace = text.indexOf('{');
+    const firstBracket = text.indexOf('[');
+    let jsonStart = -1;
+    if (firstBrace !== -1 && firstBracket !== -1) jsonStart = Math.min(firstBrace, firstBracket);
+    else if (firstBrace !== -1) jsonStart = firstBrace;
+    else if (firstBracket !== -1) jsonStart = firstBracket;
+
+    const lastBrace = text.lastIndexOf('}');
+    const lastBracket = text.lastIndexOf(']');
+    const jsonEnd = Math.max(lastBrace, lastBracket);
+    
+    if (jsonStart !== -1 && jsonEnd > jsonStart) {
+      return text.substring(jsonStart, jsonEnd + 1);
+    }
+    return text;
+  };
+
   const makeRequest = async (url: string, options: any = {}) => {
     const method = 'POST';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
+    
+    // Prepare body for x-www-form-urlencoded
+    let bodyObj: Record<string, string> = {};
+    if (options.body) {
+      try {
+        bodyObj = JSON.parse(options.body);
+      } catch (e) {
+        console.error("Failed to parse local body string", e);
+      }
+    }
+
+    const params = new URLSearchParams();
+    Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
     
     try {
       if (isNative) {
@@ -77,63 +111,56 @@ const App: React.FC = () => {
           method,
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
             ...options.headers,
           },
-          data: options.body ? JSON.parse(options.body) : undefined,
+          // For form-urlencoded in CapacitorHttp, send the parameters as an object or serialized string
+          data: bodyObj, 
           connectTimeout: 15000,
           readTimeout: 15000
         });
 
-        if (response.status >= 200 && response.status < 300) {
-            return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        // Always clean the response data in case of PHP warnings on native
+        const rawData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        const cleanedText = cleanJsonResponse(rawData);
+
+        if (response.status >= 200 && response.status < 400) {
+          try {
+            return JSON.parse(cleanedText);
+          } catch (e) {
+            console.error("Native Parse failure:", rawData);
+            throw new Error("Invalid response format.");
+          }
         }
-        throw new Error(response.data?.message || `Server Status ${response.status}`);
+        throw new Error(response.data?.message || `Server Error (${response.status})`);
       } else {
         const fetchOptions: RequestInit = {
           method,
           mode: 'cors',
           credentials: 'omit',
+          headers: {
+            'Accept': 'application/json',
+            // Simple Request (no preflight) if using URLSearchParams
+          },
+          body: params
         };
-
-        const params = new URLSearchParams();
-        if (options.body) {
-          try {
-            const bodyObj = JSON.parse(options.body);
-            Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
-          } catch (e) { }
-        }
-        fetchOptions.body = params;
 
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
-
-        const firstBrace = text.indexOf('{');
-        const firstBracket = text.indexOf('[');
-        let jsonStart = -1;
-        if (firstBrace !== -1 && firstBracket !== -1) jsonStart = Math.min(firstBrace, firstBracket);
-        else if (firstBrace !== -1) jsonStart = firstBrace;
-        else if (firstBracket !== -1) jsonStart = firstBracket;
-
-        const lastBrace = text.lastIndexOf('}');
-        const lastBracket = text.lastIndexOf(']');
-        const jsonEnd = Math.max(lastBrace, lastBracket);
-        
-        let cleanText = text;
-        if (jsonStart !== -1 && jsonEnd > jsonStart) {
-            cleanText = text.substring(jsonStart, jsonEnd + 1);
-        }
+        const cleanedText = cleanJsonResponse(text);
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         try {
-          return JSON.parse(cleanText);
+          if (!cleanedText.trim()) throw new Error("Empty response body.");
+          return JSON.parse(cleanedText);
         } catch (e) {
+          console.error("Web Parse failure raw response:", text);
           throw new Error("Invalid response format.");
         }
       }
     } catch (err: any) {
-      console.error(`Request Failed:`, err);
+      console.error(`Request Failed [${url}]:`, err);
       if (err.message === 'Failed to fetch') {
         throw new Error('Sync failed. Check connection.');
       }
@@ -159,7 +186,7 @@ const App: React.FC = () => {
       }
 
       const mappedTables: Table[] = tableData.map((t: any) => {
-        const rawStatus = String(t.status || '').toLowerCase();
+        const rawStatus = String(t.status || t.table_status || '').toLowerCase();
         return {
           table_no: String(t.table_no || t.id || '??'),
           status: (rawStatus === 'occupied' || rawStatus === '1') ? 'occupied' : 'inactive',
@@ -217,7 +244,9 @@ const App: React.FC = () => {
           master_order_id: String(o.order_id || o.master_order_id || ''),
           preferences: [],
           order_taken_by: o.order_taken_by || 'Staff',
-          note: o.food_note || o.note || ''
+          note: o.food_note || o.note || '',
+          food_type: o.food_type,
+          food_image: o.food_image
         };
       });
 
