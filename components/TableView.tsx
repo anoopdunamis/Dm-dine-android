@@ -9,10 +9,11 @@ interface TableViewProps {
   onBack: () => void;
   onDelete: (id: string, code: string) => Promise<boolean> | boolean;
   onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
+  onConfirmItem: (id: string, code: string, note: string) => Promise<boolean> | boolean;
 }
 
-const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack, onDelete, onConfirm }) => {
-  const [modalType, setModalType] = useState<'delete' | 'confirm' | null>(null);
+const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack, onDelete, onConfirm, onConfirmItem }) => {
+  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -31,6 +32,12 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
     try {
         if (modalType === 'delete' && targetId) {
           const success = await onDelete(targetId, code);
+          if (success) {
+            setModalType(null);
+            setTargetId(null);
+          }
+        } else if (modalType === 'confirm_item' && targetId) {
+          const success = await onConfirmItem(targetId, code, note || '');
           if (success) {
             setModalType(null);
             setTargetId(null);
@@ -175,12 +182,22 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
                   </div>
                   <div className="text-right flex flex-col items-end flex-shrink-0">
                     <span className="font-black text-slate-900 text-base">AED {item.food_item_price * item.food_quantity}</span>
-                    <button 
-                      onClick={() => { setTargetId(item.id); setModalType('delete'); }}
-                      className="mt-3 text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest border border-rose-100 hover:border-rose-200 px-3 py-1.5 rounded-xl active:scale-95 transition-all bg-white"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex gap-2 mt-3">
+                      <button 
+                        onClick={() => { setTargetId(item.id); setModalType('delete'); }}
+                        className="text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest border border-rose-100 hover:border-rose-200 px-3 py-1.5 rounded-xl active:scale-95 transition-all bg-white"
+                      >
+                        Delete
+                      </button>
+                      {item.status === OrderStatus.OCCUPIED && (
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }}
+                          className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest border border-indigo-100 hover:border-indigo-200 px-3 py-1.5 rounded-xl active:scale-95 transition-all bg-white"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -223,7 +240,7 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
 
       {modalType && (
         <VerificationModal 
-          type={modalType}
+          type={(modalType === 'confirm' || modalType === 'confirm_item') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}
           onConfirm={handleAction}
         />

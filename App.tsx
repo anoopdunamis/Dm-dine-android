@@ -364,7 +364,6 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
         const currentT = state.tables.find(t => t.table_no === state.currentTable);
-        // Using 'id' as the key for the primary key as requested
         await makeRequest(`${API_BASE_URL}api_delete_item.php`, {
             body: JSON.stringify({ 
               rs_id: state.rsId, 
@@ -379,6 +378,32 @@ const App: React.FC = () => {
         return true;
     } catch (err: any) {
         setErrorStatus(`Delete failed: ${err.message}`);
+        return false;
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleConfirmItem = async (itemId: string, waiterCode: string, note: string) => {
+    if (waiterCode.length < 3 || !state.rsId) return false;
+    setIsLoading(true);
+    try {
+        const currentT = state.tables.find(t => t.table_no === state.currentTable);
+        await makeRequest(`${API_BASE_URL}api_confirm_order.php`, {
+            body: JSON.stringify({ 
+              rs_id: state.rsId, 
+              id: itemId, // Item primary key
+              waiter_code: waiterCode, 
+              note,
+              master_order_id: state.orderInfo?.master_order_id || currentT?.master_order_id || ''
+            })
+        });
+        if (state.currentTable) {
+            fetchOrders(state.currentTable, state.orderInfo?.master_order_id || currentT?.master_order_id);
+        }
+        return true;
+    } catch (err: any) {
+        setErrorStatus(`Confirm Item failed: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
@@ -476,6 +501,7 @@ const App: React.FC = () => {
             onBack={handleBack}
             onDelete={handleDeleteItem}
             onConfirm={handleConfirmOrder}
+            onConfirmItem={handleConfirmItem}
           />
         ) : (
           <Dashboard 
