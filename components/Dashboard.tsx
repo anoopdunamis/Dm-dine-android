@@ -26,6 +26,12 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
   const occupiedCount = tables.filter(t => t.status === 'occupied').length;
   const occupancyRate = tables.length > 0 ? Math.round((occupiedCount / tables.length) * 100) : 0;
   const totalGuests = tables.reduce((sum, t) => sum + (t.guest_count || 0), 0);
+  const activeOrdersCount = orders.length;
+
+  // Calculation for the radial gauge
+  const radius = 35;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (occupancyRate / 100) * circumference;
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
@@ -49,21 +55,82 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
 
         {/* Shift Overview Cards */}
         <div className="grid grid-cols-2 gap-3 mb-8">
-          <div className="bg-slate-900 rounded-3xl p-5 text-white shadow-xl shadow-slate-200">
-             <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">Floor Occupancy</p>
-             <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter">{occupancyRate}%</span>
-                <div className="w-12 h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-                   <div className="h-full bg-indigo-400" style={{ width: `${occupancyRate}%` }}></div>
+          {/* CREATIVE REDESIGN: Floor Load Gauge Card */}
+          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-5 text-white shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between h-full">
+             <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+             
+             <div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3 relative z-10">Floor Load</p>
+                <div className="flex items-center gap-4 relative z-10">
+                   {/* Radial Progress Ring */}
+                   <div className="relative w-16 h-16 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                         {/* Background Circle */}
+                         <circle
+                           cx="50" cy="50" r={radius}
+                           stroke="currentColor" strokeWidth="8"
+                           fill="transparent" className="text-white/5"
+                         />
+                         {/* Progress Circle */}
+                         <circle
+                           cx="50" cy="50" r={radius}
+                           stroke="currentColor" strokeWidth="8"
+                           fill="transparent"
+                           strokeDasharray={circumference}
+                           style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-out' }}
+                           strokeLinecap="round"
+                           className="text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]"
+                         />
+                      </svg>
+                      <span className="absolute text-[11px] font-black">{occupancyRate}%</span>
+                   </div>
+                   <div>
+                      <span className="text-3xl font-black tracking-tighter block leading-none">{occupiedCount}</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Tables In Use</span>
+                   </div>
                 </div>
              </div>
+
+             <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                   <span className="text-[9px] font-bold opacity-60 uppercase">{tables.length - occupiedCount} Free</span>
+                </div>
+                <svg className="w-3 h-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" strokeWidth="3" /></svg>
+             </div>
           </div>
-          <div className="bg-white border-2 border-slate-100 rounded-3xl p-5 shadow-sm">
-             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Total Guests</p>
-             <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter text-slate-900">{totalGuests}</span>
-                <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl">
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+
+          {/* Service Pulse Card */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden group flex flex-col justify-between h-full">
+             <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <svg className="w-full h-full animate-[drift_20s_linear_infinite]" viewBox="0 0 100 100" preserveAspectRatio="none">
+                   <path d="M0,50 C20,20 40,80 60,50 C80,20 100,80 100,50 L100,100 L0,100 Z" fill="white" />
+                </svg>
+             </div>
+
+             <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                   <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Service Pulse</p>
+                   <div className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></div>
+                      <span className="text-[8px] font-black">LIVE</span>
+                   </div>
+                </div>
+                
+                <div className="flex items-baseline gap-1">
+                   <span className="text-3xl font-black tracking-tighter">{totalGuests}</span>
+                   <span className="text-[10px] font-black uppercase opacity-60">Guests</span>
+                </div>
+                <p className="text-[9px] font-bold opacity-80 uppercase tracking-tight mt-1">
+                   {activeOrdersCount} ACTIVE ORDERS
+                </p>
+             </div>
+
+             <div className="flex justify-end relative z-10 mt-2">
+                <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/10 group-hover:scale-110 transition-transform">
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                   </svg>
                 </div>
              </div>
           </div>
@@ -131,7 +198,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
         </div>
       </header>
 
-      {/* Redesigned Grid: More columns, smaller tiles */}
+      {/* Grid: Smaller, modern tiles */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
         {filteredTables.length > 0 ? (
           filteredTables.map((table) => (
@@ -146,17 +213,14 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
                   : 'bg-white text-slate-300 border border-slate-100 opacity-60 cursor-not-allowed'}
               `}
             >
-              {/* Refined Label */}
               <span className={`text-[8px] sm:text-[9px] uppercase font-black tracking-[0.15em] mb-1 ${table.status === 'occupied' ? 'text-white/80' : 'text-slate-400'}`}>
                 T-No
               </span>
               
-              {/* Table Number */}
               <span className={`text-2xl sm:text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-sm' : 'text-slate-200'}`}>
                 {table.table_no}
               </span>
               
-              {/* Guest Count Indicator */}
               {table.guest_count > 0 && table.status === 'occupied' && (
                   <div className="absolute bottom-3 flex items-center gap-1 px-2 py-0.5 bg-black/10 rounded-full backdrop-blur-sm">
                     <span className="text-[10px] font-black">{table.guest_count}</span>
@@ -164,10 +228,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
                   </div>
               )}
 
-              {/* Status Marker */}
               <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${table.status === 'occupied' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-slate-100'}`}></div>
 
-              {/* Bottom Subtle Label for Inactive */}
               {table.status === 'inactive' && (
                 <div className="absolute bottom-3">
                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-2 py-0.5 rounded-md">Empty</span>

@@ -355,7 +355,14 @@ const App: React.FC = () => {
         ) : <Dashboard tables={state.tables} orders={state.orders} onSelectTable={handleSelectTable} restaurantName={state.user.restaurantName} />}
       </main>
       <footer className="py-4 text-center bg-white border-t border-slate-100"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sync: <span className="text-slate-800">{state.rsId}</span></p></footer>
-      <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }`}</style>
+      <style>{`
+        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        @keyframes drift {
+          0% { transform: translateX(-50%) skewY(0deg); }
+          50% { transform: translateX(0%) skewY(2deg); }
+          100% { transform: translateX(-50%) skewY(0deg); }
+        }
+      `}</style>
     </div>
   );
 };
