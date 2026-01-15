@@ -136,16 +136,17 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
           filteredTables.map((table) => (
             <button
               key={table.table_no}
-              onClick={() => onSelectTable(table.table_no)}
+              onClick={() => table.status === 'occupied' && onSelectTable(table.table_no)}
+              disabled={table.status !== 'occupied'}
               className={`
-                relative aspect-square flex flex-col items-center justify-center rounded-[2.5rem] shadow-sm transition-all active:scale-95 group
+                relative aspect-square flex flex-col items-center justify-center rounded-[2.5rem] shadow-sm transition-all group
                 ${table.status === 'occupied' 
-                  ? 'bg-orange-500 text-white shadow-orange-100 ring-8 ring-orange-50 ring-inset' 
-                  : 'bg-white text-slate-600 border-2 border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}
+                  ? 'bg-orange-500 text-white shadow-orange-100 ring-8 ring-orange-50 ring-inset active:scale-95 cursor-pointer' 
+                  : 'bg-white text-slate-300 border-2 border-slate-50 cursor-not-allowed'}
               `}
             >
               <span className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Table</span>
-              <span className="text-3xl font-black tracking-tighter">{table.table_no}</span>
+              <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white' : 'text-slate-200'}`}>{table.table_no}</span>
               
               {table.guest_count > 0 && (
                   <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-lg flex items-center gap-1 border border-white/20">
@@ -155,8 +156,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
               )}
 
               {table.status === 'inactive' && (
-                <div className="absolute bottom-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                   <span className="text-[8px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Available</span>
+                <div className="absolute bottom-4 opacity-40">
+                   <span className="text-[8px] font-black uppercase tracking-widest bg-slate-50 text-slate-300 px-2 py-0.5 rounded-full">Inactive</span>
                 </div>
               )}
             </button>
