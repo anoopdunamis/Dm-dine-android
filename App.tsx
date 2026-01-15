@@ -39,7 +39,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (errorStatus) {
-      const timer = setTimeout(() => setErrorStatus(null), 12000);
+      const timer = setTimeout(() => setErrorStatus(null), 10000);
       return () => clearTimeout(timer);
     }
   }, [errorStatus]);
@@ -69,7 +69,6 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
-        // Native Capacitor logic bypasses CORS checks entirely
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -86,25 +85,23 @@ const App: React.FC = () => {
         if (response.status >= 200 && response.status < 300) {
             return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
         }
-        throw new Error(response.data?.message || `Server Code: ${response.status}`);
+        throw new Error(response.data?.message || `Server Error ${response.status}`);
       } else {
-        // Browser Strategy: Use "Simple Request" profile to skip CORS Preflight (OPTIONS)
+        // Browser Mode: Force "Simple Request" protocol to maximize CORS compatibility
         const fetchOptions: RequestInit = {
           method,
-          mode: 'cors',
-          credentials: 'omit',
+          // Let browser handle mode and credentials automatically for better compatibility
+          referrerPolicy: "no-referrer",
         };
 
-        // For Simple Requests, we MUST NOT set custom headers like Accept or Content-Type: application/json
-        // We use URLSearchParams which defaults to application/x-www-form-urlencoded (A 'Simple' type)
         if (method === 'POST' && options.body) {
           try {
             const bodyObj = JSON.parse(options.body);
             const params = new URLSearchParams();
-            for (const key in bodyObj) {
-              params.append(key, bodyObj[key]);
-            }
+            Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
             fetchOptions.body = params;
+            // IMPORTANT: We do NOT set headers manually. URLSearchParams automatically sets 
+            // application/x-www-form-urlencoded, making this a "Simple Request" that bypasses preflight OPTIONS.
           } catch (e) {
             fetchOptions.body = options.body;
           }
@@ -113,34 +110,34 @@ const App: React.FC = () => {
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
 
-        // Robust parsing: strip potential PHP notices/warnings prepended to JSON
+        // Robust JSON extraction: strip HTML errors or PHP notices prepended to output
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         const arrayStart = text.indexOf('[');
         const arrayEnd = text.lastIndexOf(']');
         
         let cleanText = text;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
+        if (jsonStart !== -1 && jsonEnd > jsonStart) {
             cleanText = text.substring(jsonStart, jsonEnd + 1);
-        } else if (arrayStart !== -1 && arrayEnd !== -1) {
+        } else if (arrayStart !== -1 && arrayEnd > arrayStart) {
             cleanText = text.substring(arrayStart, arrayEnd + 1);
         }
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP Error: ${response.status}`);
         }
 
         try {
           return JSON.parse(cleanText);
         } catch (e) {
-          console.error("Malformed Response:", text);
-          throw new Error("Server returned an invalid format. Check PHP for hidden errors.");
+          console.error("Malformed Response Content:", text);
+          throw new Error("Server returned an invalid data format.");
         }
       }
     } catch (err: any) {
-      console.error(`Network Trace [${method}] ${url}:`, err);
+      console.error(`Fetch failure [${method}] to ${url}:`, err);
       if (err.message === 'Failed to fetch') {
-        throw new Error('Connection Blocked. Your server must explicitly allow Cross-Origin (CORS) requests.');
+        throw new Error('Connection Blocked: The server refused the request (CORS/SSL issues).');
       }
       throw err;
     }
@@ -172,7 +169,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err: any) {
-      setErrorStatus(`Sync Failure: ${err.message}`);
+      setErrorStatus(`Sync Failed: ${err.message}`);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
@@ -205,7 +202,7 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
     } catch (err: any) {
-      setErrorStatus(`Fetch Error: ${err.message}`);
+      setErrorStatus(`Orders Failure: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -256,7 +253,7 @@ const App: React.FC = () => {
             }));
             return true;
         } else {
-            throw new Error(response.message || response.error || 'Check login details');
+            throw new Error(response.message || response.error || 'Invalid credentials provided');
         }
     } catch (err: any) {
         setErrorStatus(err.message);
@@ -406,7 +403,7 @@ const App: React.FC = () => {
 
       <footer className="py-6 text-center bg-white border-t border-slate-100 flex-shrink-0 safe-bottom">
         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-          Sync Point: <span className="text-slate-800 font-bold">{state.rsId || 'AUTH_REQD'}</span>
+          Sync Node: <span className="text-slate-800 font-bold">{state.rsId || 'PENDING'}</span>
         </p>
       </footer>
 
