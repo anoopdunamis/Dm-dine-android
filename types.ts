@@ -28,6 +28,7 @@ export interface Table {
   status: 'inactive' | 'occupied' | 'dirty';
   guest_count: number;
   tax: number;
+  master_order_id?: string | null;
 }
 
 export interface UserInfo {

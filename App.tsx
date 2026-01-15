@@ -67,8 +67,8 @@ const App: React.FC = () => {
    * Uses URLSearchParams for POST on web to avoid CORS preflight (Simple Request)
    */
   const makeRequest = async (url: string, options: any = {}) => {
-    // Force method to POST for all calls except where explicitly GET
-    const method = options.method || 'POST';
+    // Force method to POST for all calls
+    const method = 'POST';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
     
@@ -98,20 +98,17 @@ const App: React.FC = () => {
           credentials: 'omit',
         };
 
-        if (method === 'POST') {
-          const params = new URLSearchParams();
-          if (options.body) {
-            try {
-              const bodyObj = JSON.parse(options.body);
-              Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
-            } catch (e) {
-              // Fallback if body is not JSON
-            }
+        const params = new URLSearchParams();
+        if (options.body) {
+          try {
+            const bodyObj = JSON.parse(options.body);
+            Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
+          } catch (e) {
+            // Fallback
           }
-          fetchOptions.body = params;
-          // IMPORTANT: Do NOT set Content-Type header. 
-          // Browser will set it to application/x-www-form-urlencoded, making it a "Simple Request".
         }
+        fetchOptions.body = params;
+        // Do NOT set Content-Type header on web to keep it a "Simple Request"
 
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
@@ -141,13 +138,13 @@ const App: React.FC = () => {
           return JSON.parse(cleanText);
         } catch (e) {
           console.error("Parse failure:", text);
-          throw new Error("Invalid response format from server.");
+          throw new Error("Invalid response format.");
         }
       }
     } catch (err: any) {
       console.error(`Request Failed:`, err);
       if (err.message === 'Failed to fetch') {
-        throw new Error('Connection error. The server might be unreachable or CORS is blocking the request.');
+        throw new Error('Connection error. Server might be unreachable or CORS policy is blocking the request.');
       }
       throw err;
     }
@@ -158,9 +155,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      // POST request for tables
       const response = await makeRequest(`${API_BASE_URL}api_tables.php`, {
-        method: 'POST',
         body: JSON.stringify({ rs_id: state.rsId })
       });
       
@@ -179,7 +174,8 @@ const App: React.FC = () => {
           table_no: String(t.table_no || t.id || '??'),
           status: (rawStatus === 'occupied' || rawStatus === '1') ? 'occupied' : 'inactive',
           guest_count: Number(t.guest_count || 0),
-          tax: Number(t.tax || 0)
+          tax: Number(t.tax || 0),
+          master_order_id: t.master_order_id || null
         };
       });
 
@@ -192,15 +188,17 @@ const App: React.FC = () => {
     }
   }, [state.rsId]);
 
-  const fetchOrders = useCallback(async (tableNo: string) => {
+  const fetchOrders = useCallback(async (tableNo: string, masterOrderId?: string | null) => {
     if (!API_ENABLED || !state.rsId) return;
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      // POST request for orders
       const response = await makeRequest(`${API_BASE_URL}api_orders.php`, {
-        method: 'POST',
-        body: JSON.stringify({ table_no: tableNo, rs_id: state.rsId })
+        body: JSON.stringify({ 
+          table_no: tableNo, 
+          rs_id: state.rsId,
+          master_order_id: masterOrderId || ''
+        })
       });
       
       let orderData: any[] = [];
@@ -233,7 +231,6 @@ const App: React.FC = () => {
     }
   }, [state.rsId]);
 
-  // Handle Initial State & Routing
   useEffect(() => {
     if (state.view === 'splash') {
         const timer = setTimeout(() => {
@@ -259,11 +256,9 @@ const App: React.FC = () => {
     setErrorStatus(null);
     try {
         const response = await makeRequest(`${API_BASE_URL}api_auth.php`, {
-            method: 'POST',
             body: JSON.stringify({ username: user, password: pass })
         });
 
-        // Parse nested user structure from sample: { success: true, user: { rs_id: "234", ... } }
         const userData = response.user || {};
         const rsId = String(userData.rs_id || response.rs_id || '');
         const userId = String(userData.id || userData.user_id || '');
@@ -312,8 +307,9 @@ const App: React.FC = () => {
   };
 
   const handleSelectTable = (tableNo: string) => {
+    const table = state.tables.find(t => t.table_no === tableNo);
     setState(prev => ({ ...prev, currentTable: tableNo }));
-    fetchOrders(tableNo);
+    fetchOrders(tableNo, table?.master_order_id);
   };
 
   const handleBack = () => {
@@ -326,10 +322,12 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
         await makeRequest(`${API_BASE_URL}api_delete_item.php`, {
-            method: 'POST',
             body: JSON.stringify({ rs_id: state.rsId, item_id: itemId, waiter_code: waiterCode })
         });
-        if (state.currentTable) fetchOrders(state.currentTable);
+        if (state.currentTable) {
+            const currentT = state.tables.find(t => t.table_no === state.currentTable);
+            fetchOrders(state.currentTable, currentT?.master_order_id);
+        }
         return true;
     } catch (err: any) {
         setErrorStatus(`Delete Error: ${err.message}`);
@@ -344,10 +342,10 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
         await makeRequest(`${API_BASE_URL}api_confirm_order.php`, {
-            method: 'POST',
             body: JSON.stringify({ rs_id: state.rsId, table_no: tableNo, waiter_code: waiterCode, note })
         });
-        fetchOrders(tableNo);
+        const currentT = state.tables.find(t => t.table_no === tableNo);
+        fetchOrders(tableNo, currentT?.master_order_id);
         return true;
     } catch (err: any) {
         setErrorStatus(`Confirm Error: ${err.message}`);
