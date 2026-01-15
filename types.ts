@@ -23,6 +23,19 @@ export interface OrderItem {
   note?: string;
 }
 
+export interface OrderInfo {
+  master_order_id: string;
+  table_no: string;
+  status: string;
+  placed_time: string;
+  total: string;
+  order_type: string;
+  payment_status: string;
+  note: string;
+  order_taken_by: string;
+  tax: string;
+}
+
 export interface Table {
   table_no: string;
   status: 'inactive' | 'occupied' | 'dirty';
@@ -48,4 +61,5 @@ export interface AppState {
   currentTable: string | null;
   tables: Table[];
   orders: OrderItem[];
+  orderInfo: OrderInfo | null;
 }
