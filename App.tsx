@@ -231,6 +231,7 @@ const App: React.FC = () => {
     }
   }, [state.rsId]);
 
+  // Handle Initial State & Routing
   useEffect(() => {
     if (state.view === 'splash') {
         const timer = setTimeout(() => {
@@ -240,11 +241,30 @@ const App: React.FC = () => {
     }
   }, [state.view, state.isAuthenticated]);
 
+  // Initial fetch for main floor
   useEffect(() => {
     if (state.view === 'main' && !state.currentTable && state.rsId) {
       fetchTables();
     }
   }, [state.view, state.currentTable, state.rsId, fetchTables]);
+
+  // Automatic refresh every 15 seconds
+  useEffect(() => {
+    if (!state.isAuthenticated || state.view !== 'main' || !state.rsId) return;
+
+    const intervalId = setInterval(() => {
+      // If we are currently in a table detail view, refresh orders
+      if (state.currentTable) {
+        const table = state.tables.find(t => t.table_no === state.currentTable);
+        fetchOrders(state.currentTable, table?.master_order_id);
+      } else {
+        // Otherwise refresh the entire table floor plan
+        fetchTables();
+      }
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [state.isAuthenticated, state.view, state.rsId, state.currentTable, state.tables, fetchTables, fetchOrders]);
 
   useEffect(() => {
     const { isAuthenticated, user, rsId, tables, orders } = state;
