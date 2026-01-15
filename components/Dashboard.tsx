@@ -6,11 +6,12 @@ interface DashboardProps {
   orders: OrderItem[];
   onSelectTable: (tableNo: string) => void;
   onInstall?: () => void;
+  restaurantName?: string | null;
 }
 
 type FilterStatus = 'all' | 'occupied' | 'inactive';
 
-const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, onInstall }) => {
+const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, onInstall, restaurantName }) => {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -31,7 +32,9 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
       <header className="mb-8">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Main Floor</h1>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                {restaurantName || 'Main Floor'}
+            </h1>
             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Order Management System</p>
           </div>
           {onInstall && (

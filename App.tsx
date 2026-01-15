@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, OrderItem, OrderStatus, AppState } from './types';
+import { Table, OrderItem, OrderStatus, AppState, UserInfo } from './types';
 import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
@@ -9,20 +9,21 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core';
 // Configuration for API
 const API_ENABLED = true; 
 const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/json/'; 
-const STATIC_RS_ID = '235';
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
   const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('dinesync_state');
+    const saved = localStorage.getItem('dinesync_state_v2');
     const initialState = saved ? JSON.parse(saved) : null;
     
     return {
       view: 'splash',
       isAuthenticated: initialState?.isAuthenticated || false,
-      userName: initialState?.userName || null,
+      user: initialState?.user || { id: null, name: null, role: null },
+      rsId: initialState?.rsId || null,
       currentTable: null,
       tables: [], 
       orders: [],
@@ -31,16 +32,14 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Live Clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Error auto-dismiss
   useEffect(() => {
     if (errorStatus) {
-      const timer = setTimeout(() => setErrorStatus(null), 5000);
+      const timer = setTimeout(() => setErrorStatus(null), 12000);
       return () => clearTimeout(timer);
     }
   }, [errorStatus]);
@@ -70,88 +69,98 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
+        // Native Capacitor logic bypasses CORS checks entirely
         const response = await CapacitorHttp.request({
           url,
           method,
           headers: {
             'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
             ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
             ...options.headers,
           },
           data: options.body ? JSON.parse(options.body) : undefined,
-          connectTimeout: 10000,
-          readTimeout: 10000
+          connectTimeout: 15000,
+          readTimeout: 15000
         });
 
         if (response.status >= 200 && response.status < 300) {
-            if (typeof response.data === 'string') {
-                try {
-                    return JSON.parse(response.data);
-                } catch (e) {
-                    throw new Error("Invalid JSON response from server");
-                }
-            }
-            return response.data;
+            return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
         }
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(response.data?.message || `Server Code: ${response.status}`);
       } else {
+        // Browser Strategy: Use "Simple Request" profile to skip CORS Preflight (OPTIONS)
         const fetchOptions: RequestInit = {
           method,
+          mode: 'cors',
           credentials: 'omit',
-          headers: {
-            'Accept': 'application/json',
-            ...options.headers
-          }
         };
 
-        if (method !== 'GET') {
-          (fetchOptions.headers as any)['Content-Type'] = 'application/json';
-          if (options.body) fetchOptions.body = options.body;
+        // For Simple Requests, we MUST NOT set custom headers like Accept or Content-Type: application/json
+        // We use URLSearchParams which defaults to application/x-www-form-urlencoded (A 'Simple' type)
+        if (method === 'POST' && options.body) {
+          try {
+            const bodyObj = JSON.parse(options.body);
+            const params = new URLSearchParams();
+            for (const key in bodyObj) {
+              params.append(key, bodyObj[key]);
+            }
+            fetchOptions.body = params;
+          } catch (e) {
+            fetchOptions.body = options.body;
+          }
         }
 
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
 
+        // Robust parsing: strip potential PHP notices/warnings prepended to JSON
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        const arrayStart = text.indexOf('[');
+        const arrayEnd = text.lastIndexOf(']');
+        
+        let cleanText = text;
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            cleanText = text.substring(jsonStart, jsonEnd + 1);
+        } else if (arrayStart !== -1 && arrayEnd !== -1) {
+            cleanText = text.substring(arrayStart, arrayEnd + 1);
+        }
+
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         try {
-          return JSON.parse(text);
+          return JSON.parse(cleanText);
         } catch (e) {
-          throw new Error("Response was not valid JSON");
+          console.error("Malformed Response:", text);
+          throw new Error("Server returned an invalid format. Check PHP for hidden errors.");
         }
       }
     } catch (err: any) {
+      console.error(`Network Trace [${method}] ${url}:`, err);
+      if (err.message === 'Failed to fetch') {
+        throw new Error('Connection Blocked. Your server must explicitly allow Cross-Origin (CORS) requests.');
+      }
       throw err;
     }
   };
 
   const fetchTables = useCallback(async () => {
-    if (!API_ENABLED) return;
+    if (!API_ENABLED || !state.rsId) return;
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${STATIC_RS_ID}`);
+      const response = await makeRequest(`${API_BASE_URL}api_tables.php?rs_id=${state.rsId}`);
       
       let tableData: any[] = [];
-      if (Array.isArray(response)) {
-        tableData = response;
-      } else if (response && response.data && Array.isArray(response.data)) {
-        tableData = response.data;
-      } else if (response && response.tables && Array.isArray(response.tables)) {
-        tableData = response.tables;
-      }
+      if (Array.isArray(response)) tableData = response;
+      else if (response?.data && Array.isArray(response.data)) tableData = response.data;
+      else if (response?.tables && Array.isArray(response.tables)) tableData = response.tables;
 
       const mappedTables: Table[] = tableData.map((t: any) => {
-        const rawStatus = String(t.status || t.table_status || '').toLowerCase();
-        const isOccupied = rawStatus.includes('occupied') || 
-                          rawStatus.includes('busy') || 
-                          rawStatus === '1' || 
-                          rawStatus === 'true' ||
-                          rawStatus === 'placed' ||
-                          rawStatus === 'active';
+        const rawStatus = String(t.status || t.table_status || t.tab_status || '').toLowerCase();
+        const isOccupied = rawStatus.includes('occupied') || rawStatus.includes('busy') || rawStatus === '1' || rawStatus === 'active';
         
         return {
           table_no: String(t.table_no || t.no || t.table_id || t.id || '??'),
@@ -163,26 +172,23 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, tables: mappedTables }));
     } catch (err: any) {
-      setErrorStatus(err.message);
+      setErrorStatus(`Sync Failure: ${err.message}`);
       setState(prev => ({ ...prev, tables: [] }));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [state.rsId]);
 
   const fetchOrders = useCallback(async (tableNo: string) => {
-    if (!API_ENABLED) return;
+    if (!API_ENABLED || !state.rsId) return;
     setIsLoading(true);
     setErrorStatus(null);
     try {
-      const response = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${STATIC_RS_ID}`);
+      const response = await makeRequest(`${API_BASE_URL}api_orders.php?table_no=${tableNo}&rs_id=${state.rsId}`);
       
       let orderData: any[] = [];
-      if (Array.isArray(response)) {
-        orderData = response;
-      } else if (response && response.data && Array.isArray(response.data)) {
-        orderData = response.data;
-      }
+      if (Array.isArray(response)) orderData = response;
+      else if (response?.data && Array.isArray(response.data)) orderData = response.data;
 
       const mappedOrders: OrderItem[] = orderData.map((o: any) => ({
         id: String(o.id || o.sub_id || Math.random().toString(36).substr(2, 9)),
@@ -199,51 +205,79 @@ const App: React.FC = () => {
 
       setState(prev => ({ ...prev, orders: mappedOrders }));
     } catch (err: any) {
-      setErrorStatus(err.message);
-      setState(prev => ({ ...prev, orders: [] }));
+      setErrorStatus(`Fetch Error: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [state.rsId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setState(prev => ({ 
-        ...prev, 
-        view: prev.isAuthenticated ? 'main' : 'login' 
-      }));
+      setState(prev => ({ ...prev, view: prev.isAuthenticated ? 'main' : 'login' }));
     }, 2500);
     return () => clearTimeout(timer);
   }, [state.isAuthenticated]);
 
   useEffect(() => {
-    if (state.view === 'main' && !state.currentTable) {
+    if (state.view === 'main' && !state.currentTable && state.rsId) {
       fetchTables();
     }
-  }, [state.view, state.currentTable, fetchTables]);
+  }, [state.view, state.currentTable, state.rsId, fetchTables]);
 
   useEffect(() => {
-    const { isAuthenticated, userName, tables, orders } = state;
-    localStorage.setItem('dinesync_state', JSON.stringify({ isAuthenticated, userName, tables, orders }));
+    const { isAuthenticated, user, rsId, tables, orders } = state;
+    localStorage.setItem('dinesync_state_v2', JSON.stringify({ isAuthenticated, user, rsId, tables, orders }));
   }, [state]);
 
-  const handleLogin = (user: string, pass: string) => {
-    setState(prev => ({
-      ...prev,
-      isAuthenticated: true,
-      userName: user,
-      view: 'main'
-    }));
+  const handleLogin = async (user: string, pass: string) => {
+    setIsLoading(true);
+    setErrorStatus(null);
+    try {
+        const response = await makeRequest(`${API_BASE_URL}api_auth.php`, {
+            method: 'POST',
+            body: JSON.stringify({ username: user, password: pass })
+        });
+
+        if (response.status === 'success' || (response.rs_id && !response.error)) {
+            const rsId = String(response.rs_id || response.rsId);
+            const userInfo: UserInfo = {
+                id: String(response.user_id || response.id || ''),
+                name: response.user_name || response.name || user,
+                role: response.role || response.user_role || 'Staff',
+                restaurantName: response.restaurant_name || response.outlet_name || null
+            };
+
+            setState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                user: userInfo,
+                rsId: rsId,
+                view: 'main'
+            }));
+            return true;
+        } else {
+            throw new Error(response.message || response.error || 'Check login details');
+        }
+    } catch (err: any) {
+        setErrorStatus(err.message);
+        return false;
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
     setState(prev => ({
       ...prev,
       isAuthenticated: false,
-      userName: null,
+      user: { id: null, name: null, role: null },
+      rsId: null,
       view: 'login',
-      currentTable: null
+      currentTable: null,
+      tables: [],
+      orders: []
     }));
+    localStorage.removeItem('dinesync_state_v2');
   };
 
   const handleSelectTable = (tableNo: string) => {
@@ -257,17 +291,17 @@ const App: React.FC = () => {
   };
 
   const handleDeleteItem = async (itemId: string, waiterCode: string) => {
-    if (waiterCode.length < 3) return false;
+    if (waiterCode.length < 3 || !state.rsId) return false;
     setIsLoading(true);
     try {
-        await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${STATIC_RS_ID}`, {
+        await makeRequest(`${API_BASE_URL}api_delete_item.php?rs_id=${state.rsId}`, {
             method: 'POST',
             body: JSON.stringify({ item_id: itemId, waiter_code: waiterCode })
         });
         if (state.currentTable) fetchOrders(state.currentTable);
         return true;
     } catch (err: any) {
-        setErrorStatus(err.message);
+        setErrorStatus(`Delete Failure: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
@@ -275,30 +309,25 @@ const App: React.FC = () => {
   };
 
   const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
-    if (waiterCode.length < 3) return false;
+    if (waiterCode.length < 3 || !state.rsId) return false;
     setIsLoading(true);
     try {
-        await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${STATIC_RS_ID}`, {
+        await makeRequest(`${API_BASE_URL}api_confirm_order.php?rs_id=${state.rsId}`, {
             method: 'POST',
             body: JSON.stringify({ table_no: tableNo, waiter_code: waiterCode, note })
         });
         fetchOrders(tableNo);
         return true;
     } catch (err: any) {
-        setErrorStatus(err.message);
+        setErrorStatus(`Confirm Failure: ${err.message}`);
         return false;
     } finally {
         setIsLoading(false);
     }
   };
 
-  if (state.view === 'splash') {
-    return <SplashScreen />;
-  }
-
-  if (state.view === 'login') {
-    return <LoginPage onLogin={handleLogin} />;
-  }
+  if (state.view === 'splash') return <SplashScreen />;
+  if (state.view === 'login') return <LoginPage onLogin={handleLogin} />;
 
   return (
     <div className="h-full bg-slate-50 text-slate-900 font-sans flex flex-col relative overflow-hidden">
@@ -308,18 +337,17 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Toast System */}
       {errorStatus && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm">
-          <div className="bg-rose-600 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 animate-in slide-in-from-bottom-10 fade-in duration-300">
-            <div className="bg-white/20 p-2 rounded-xl">
+          <div className="bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 animate-in slide-in-from-bottom-10 duration-300">
+            <div className="bg-rose-500 p-2 rounded-xl flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">System Alert</p>
-              <p className="text-sm font-bold">{errorStatus}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Connection Handshake</p>
+              <p className="text-sm font-bold leading-snug break-words">{errorStatus}</p>
             </div>
-            <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg">✕</button>
+            <button onClick={() => setErrorStatus(null)} className="p-2 hover:bg-white/10 rounded-lg flex-shrink-0">✕</button>
           </div>
         </div>
       )}
@@ -328,18 +356,18 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           {state.isAuthenticated && (
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 border border-white/20">
-                <span className="text-white font-black text-sm uppercase">{state.userName?.[0]}</span>
+              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg border border-white/20">
+                <span className="text-white font-black text-sm uppercase">{state.user.name?.[0]}</span>
               </div>
               <div className="hidden sm:block">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Active Staff</p>
-                <p className="text-xs font-black text-slate-700 capitalize leading-tight">{state.userName}</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{state.user.role || 'Staff'}</p>
+                <p className="text-xs font-black text-slate-700 capitalize leading-tight">{state.user.name}</p>
               </div>
             </div>
           )}
           <div className="h-6 w-px bg-slate-100 mx-1"></div>
           <div className="text-right">
-            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Shift Time</p>
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest leading-none">Status</p>
             <p className="text-xs font-black text-slate-600 tabular-nums">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
@@ -348,21 +376,11 @@ const App: React.FC = () => {
 
         <div className="flex gap-2 items-center">
             {!state.currentTable && (
-                <button 
-                  onClick={fetchTables} 
-                  disabled={isLoading}
-                  className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-90 disabled:opacity-50"
-                  aria-label="Refresh Tables"
-                >
+                <button onClick={fetchTables} disabled={isLoading} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all disabled:opacity-50">
                     <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
             )}
-            <button 
-                onClick={handleLogout}
-                className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg shadow-slate-100"
-            >
-                Log Out
-            </button>
+            <button onClick={handleLogout} className="bg-slate-900 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl hover:bg-rose-600 active:scale-95 transition-all">Log Out</button>
         </div>
       </div>
 
@@ -381,17 +399,15 @@ const App: React.FC = () => {
             orders={state.orders}
             onSelectTable={handleSelectTable}
             onInstall={deferredPrompt ? handleInstallClick : undefined}
+            restaurantName={state.user.restaurantName}
           />
         )}
       </main>
 
       <footer className="py-6 text-center bg-white border-t border-slate-100 flex-shrink-0 safe-bottom">
-        <div className="flex flex-col items-center gap-1 opacity-40">
-           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mb-1"></div>
-           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-             Server Status: <span className="text-emerald-600">Secure & Connected</span>
-           </p>
-        </div>
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+          Sync Point: <span className="text-slate-800 font-bold">{state.rsId || 'AUTH_REQD'}</span>
+        </p>
       </footer>
 
       <style>{`

@@ -1,4 +1,3 @@
-
 export enum OrderStatus {
   CART = 'initial',
   OCCUPIED = 'Placed',
@@ -31,12 +30,20 @@ export interface Table {
   tax: number;
 }
 
+export interface UserInfo {
+  id: string | null;
+  name: string | null;
+  role: string | null;
+  restaurantName?: string | null;
+}
+
 export type AppView = 'splash' | 'login' | 'main';
 
 export interface AppState {
   view: AppView;
   isAuthenticated: boolean;
-  userName: string | null;
+  user: UserInfo;
+  rsId: string | null;
   currentTable: string | null;
   tables: Table[];
   orders: OrderItem[];
