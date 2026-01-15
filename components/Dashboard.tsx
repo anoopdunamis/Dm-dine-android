@@ -131,7 +131,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
         </div>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {/* Redesigned Grid: More columns, smaller tiles */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
         {filteredTables.length > 0 ? (
           filteredTables.map((table) => (
             <button
@@ -139,25 +140,37 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
               onClick={() => table.status === 'occupied' && onSelectTable(table.table_no)}
               disabled={table.status !== 'occupied'}
               className={`
-                relative aspect-square flex flex-col items-center justify-center rounded-[2.5rem] shadow-sm transition-all group
+                relative aspect-[4/5] flex flex-col items-center justify-center rounded-2xl sm:rounded-[2rem] shadow-sm transition-all duration-300 group
                 ${table.status === 'occupied' 
-                  ? 'bg-orange-500 text-white shadow-orange-100 ring-8 ring-orange-50 ring-inset active:scale-95 cursor-pointer' 
-                  : 'bg-white text-slate-300 border-2 border-slate-50 cursor-not-allowed'}
+                  ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-200/40 active:scale-90 cursor-pointer border-b-4 border-orange-600/30' 
+                  : 'bg-white text-slate-300 border border-slate-100 opacity-60 cursor-not-allowed'}
               `}
             >
-              <span className="text-[10px] uppercase font-black tracking-widest opacity-60 mb-1">Table</span>
-              <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white' : 'text-slate-200'}`}>{table.table_no}</span>
+              {/* Refined Label */}
+              <span className={`text-[8px] sm:text-[9px] uppercase font-black tracking-[0.15em] mb-1 ${table.status === 'occupied' ? 'text-white/80' : 'text-slate-400'}`}>
+                T-No
+              </span>
               
-              {table.guest_count > 0 && (
-                  <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-lg flex items-center gap-1 border border-white/20">
+              {/* Table Number */}
+              <span className={`text-2xl sm:text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-sm' : 'text-slate-200'}`}>
+                {table.table_no}
+              </span>
+              
+              {/* Guest Count Indicator */}
+              {table.guest_count > 0 && table.status === 'occupied' && (
+                  <div className="absolute bottom-3 flex items-center gap-1 px-2 py-0.5 bg-black/10 rounded-full backdrop-blur-sm">
                     <span className="text-[10px] font-black">{table.guest_count}</span>
                     <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
                   </div>
               )}
 
+              {/* Status Marker */}
+              <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${table.status === 'occupied' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-slate-100'}`}></div>
+
+              {/* Bottom Subtle Label for Inactive */}
               {table.status === 'inactive' && (
-                <div className="absolute bottom-4 opacity-40">
-                   <span className="text-[8px] font-black uppercase tracking-widest bg-slate-50 text-slate-300 px-2 py-0.5 rounded-full">Inactive</span>
+                <div className="absolute bottom-3">
+                   <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-2 py-0.5 rounded-md">Empty</span>
                 </div>
               )}
             </button>
@@ -170,7 +183,6 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
               </svg>
             </div>
             <p className="text-slate-400 font-black uppercase tracking-widest text-sm">No tables found</p>
-            <p className="text-slate-300 text-[10px] mt-2 font-bold px-10">Check your search query or refresh the floor plan using the icon above.</p>
           </div>
         )}
       </div>
