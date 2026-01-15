@@ -364,16 +364,17 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
         const currentT = state.tables.find(t => t.table_no === state.currentTable);
+        // Using 'id' as the key for the primary key as requested
         await makeRequest(`${API_BASE_URL}api_delete_item.php`, {
             body: JSON.stringify({ 
               rs_id: state.rsId, 
-              item_id: itemId, 
+              id: itemId, 
               waiter_code: waiterCode,
-              master_order_id: currentT?.master_order_id || ''
+              master_order_id: state.orderInfo?.master_order_id || currentT?.master_order_id || ''
             })
         });
         if (state.currentTable) {
-            fetchOrders(state.currentTable, currentT?.master_order_id);
+            fetchOrders(state.currentTable, state.orderInfo?.master_order_id || currentT?.master_order_id);
         }
         return true;
     } catch (err: any) {

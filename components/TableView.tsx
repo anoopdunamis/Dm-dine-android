@@ -173,8 +173,14 @@ const TableView: React.FC<TableViewProps> = ({ table, orders, orderInfo, onBack,
                       </div>
                     )}
                   </div>
-                  <div className="text-right flex-shrink-0 pt-6">
+                  <div className="text-right flex flex-col items-end flex-shrink-0">
                     <span className="font-black text-slate-900 text-base">AED {item.food_item_price * item.food_quantity}</span>
+                    <button 
+                      onClick={() => { setTargetId(item.id); setModalType('delete'); }}
+                      className="mt-3 text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest border border-rose-100 hover:border-rose-200 px-3 py-1.5 rounded-xl active:scale-95 transition-all bg-white"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
