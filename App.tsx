@@ -22,7 +22,7 @@ const App: React.FC = () => {
     return {
       view: 'splash',
       isAuthenticated: initialState?.isAuthenticated || false,
-      user: initialState?.user || { id: null, name: null, role: null },
+      user: initialState?.user || { id: null, name: null, role: null, restaurantName: null },
       rsId: initialState?.rsId || null,
       currentTable: null,
       tables: [], 
@@ -33,7 +33,17 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const stateRef = useRef(state);
-  useEffect(() => { stateRef.current = state; }, [state]);
+  
+  useEffect(() => { 
+    stateRef.current = state;
+    // Persist essential state to localStorage
+    const stateToSave = {
+      isAuthenticated: state.isAuthenticated,
+      user: state.user,
+      rsId: state.rsId
+    };
+    localStorage.setItem('dinesync_state_v2', JSON.stringify(stateToSave));
+  }, [state]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -234,12 +244,18 @@ const App: React.FC = () => {
       });
       const userData = response.user || {};
       const rsId = String(userData.rs_id || response.rs_id || '');
+      
       if ((response.success === true || response.status === 'success') && rsId) {
         setState(prev => ({
           ...prev,
           isAuthenticated: true,
           rsId,
-          user: { id: String(userData.id || ''), name: userData.name || user, role: userData.user_type === '1' ? 'Admin' : 'Staff', restaurantName: response.restaurant_name },
+          user: { 
+            id: String(userData.id || ''), 
+            name: userData.name || user, 
+            role: userData.user_type === '1' ? 'Admin' : 'Staff', 
+            restaurantName: response.restaurant_name 
+          },
           view: 'main'
         }));
         return true;
@@ -249,7 +265,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setState(prev => ({ ...prev, isAuthenticated: false, view: 'login', currentTable: null }));
+    setState(prev => ({ ...prev, isAuthenticated: false, view: 'login', currentTable: null, user: { id: null, name: null, role: null, restaurantName: null }, rsId: null }));
     localStorage.removeItem('dinesync_state_v2');
   };
 
@@ -257,6 +273,13 @@ const App: React.FC = () => {
     const t = state.tables.find(tbl => tbl.table_no === tableNo);
     setState(prev => ({ ...prev, currentTable: tableNo, orderInfo: null }));
     fetchOrders(tableNo, t?.master_order_id);
+  };
+
+  const handleRefreshCurrentTable = async () => {
+    if (state.currentTable) {
+      const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
+      await fetchOrders(state.currentTable, t?.master_order_id);
+    }
   };
 
   const handleDeleteItem = async (itemId: string, waiterCode: string) => {
@@ -351,8 +374,9 @@ const App: React.FC = () => {
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
             onConfirmAll={handleConfirmAllItems}
+            onRefresh={handleRefreshCurrentTable}
           />
-        ) : <Dashboard tables={state.tables} orders={state.orders} onSelectTable={handleSelectTable} restaurantName={state.user.restaurantName} />}
+        ) : <Dashboard tables={state.tables} orders={state.orders} onSelectTable={handleSelectTable} restaurantName={state.user.restaurantName} onInstall={handleInstallClick} />}
       </main>
       <footer className="py-4 text-center bg-white border-t border-slate-100"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sync: <span className="text-slate-800">{state.rsId}</span></p></footer>
       <style>{`

@@ -35,100 +35,124 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
-      <header className="mb-8">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                {restaurantName || 'Main Floor'}
-            </h1>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Order Management System</p>
+      <header className="mb-10 relative">
+        {/* Decorative Background Elements */}
+        <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-[60px] pointer-events-none"></div>
+
+        <div className="flex justify-between items-center mb-10 relative z-10">
+          <div className="flex gap-5 items-center">
+            {/* Premium Logo Mark */}
+            <div className="relative group">
+              <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+              <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center shadow-2xl rotate-3 group-hover:rotate-0 transition-all duration-500 relative">
+                <span className="text-white font-black text-2xl italic">D</span>
+              </div>
+            </div>
+            
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <h1 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight leading-none">
+                  {restaurantName || 'Main Floor'}
+                </h1>
+                <div className="inline-flex items-center gap-1.5 bg-white shadow-sm px-3 py-1 rounded-full border border-slate-100 self-start sm:self-auto">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Live Sync</span>
+                </div>
+              </div>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 ml-1"> { restaurantName } Dashboard</p>
+            </div>
           </div>
+
           {onInstall && (
             <button 
               onClick={onInstall}
-              className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-100 animate-bounce active:scale-95"
+              className="hidden sm:block bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all"
             >
-              Install Pro
+              Pro Suite
             </button>
           )}
         </div>
 
-        {/* Shift Overview Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          {/* CREATIVE REDESIGN: Floor Load Gauge Card */}
-          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-5 text-white shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between h-full">
-             <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+        {/* Dynamic Shift Insight Cards */}
+        <div className="grid grid-cols-2 gap-4 mb-10">
+          {/* Creative Component: Floor Load (Replacing Occupancy) */}
+          <div className="bg-slate-950 rounded-[2.5rem] p-6 text-white shadow-2xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between aspect-square sm:aspect-auto">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
              
              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3 relative z-10">Floor Load</p>
-                <div className="flex items-center gap-4 relative z-10">
-                   {/* Radial Progress Ring */}
-                   <div className="relative w-16 h-16 flex items-center justify-center">
+                <div className="flex items-center justify-between mb-4 opacity-50 relative z-10">
+                  <p className="text-[10px] font-black uppercase tracking-widest">Floor Load</p>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2z" strokeWidth="2.5"/></svg>
+                </div>
+                
+                <div className="flex items-center gap-5 relative z-10">
+                   <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                         {/* Background Circle */}
                          <circle
                            cx="50" cy="50" r={radius}
-                           stroke="currentColor" strokeWidth="8"
+                           stroke="currentColor" strokeWidth="10"
                            fill="transparent" className="text-white/5"
                          />
-                         {/* Progress Circle */}
                          <circle
                            cx="50" cy="50" r={radius}
-                           stroke="currentColor" strokeWidth="8"
+                           stroke="currentColor" strokeWidth="10"
                            fill="transparent"
                            strokeDasharray={circumference}
-                           style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-out' }}
+                           style={{ strokeDashoffset, transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
                            strokeLinecap="round"
-                           className="text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]"
+                           className="text-indigo-500 drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]"
                          />
                       </svg>
-                      <span className="absolute text-[11px] font-black">{occupancyRate}%</span>
+                      <span className="absolute text-sm font-black tracking-tighter">{occupancyRate}%</span>
                    </div>
-                   <div>
-                      <span className="text-3xl font-black tracking-tighter block leading-none">{occupiedCount}</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Tables In Use</span>
+                   <div className="hidden sm:block">
+                      <span className="text-4xl font-black tracking-tighter block">{occupiedCount}</span>
+                      <p className="text-[10px] font-black uppercase tracking-tight opacity-40">Active Tables</p>
                    </div>
                 </div>
              </div>
 
-             <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                   <span className="text-[9px] font-bold opacity-60 uppercase">{tables.length - occupiedCount} Free</span>
+             <div className="mt-6 flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                   <span className="text-[10px] font-black text-emerald-400 uppercase">{tables.length - occupiedCount} Available</span>
                 </div>
-                <svg className="w-3 h-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" strokeWidth="3" /></svg>
              </div>
           </div>
 
-          {/* Service Pulse Card */}
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden group flex flex-col justify-between h-full">
-             <div className="absolute inset-0 opacity-10 pointer-events-none">
+          {/* Creative Component: Service Pulse (Replacing Total Guests) */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[2.5rem] p-6 text-white shadow-2xl shadow-emerald-200/50 relative overflow-hidden group flex flex-col justify-between aspect-square sm:aspect-auto">
+             <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <svg className="w-full h-full animate-[drift_20s_linear_infinite]" viewBox="0 0 100 100" preserveAspectRatio="none">
                    <path d="M0,50 C20,20 40,80 60,50 C80,20 100,80 100,50 L100,100 L0,100 Z" fill="white" />
                 </svg>
              </div>
 
              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-start mb-6">
                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Service Pulse</p>
-                   <div className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-md border border-white/10">
-                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></div>
-                      <span className="text-[8px] font-black">LIVE</span>
+                   <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full backdrop-blur-md border border-white/20">
+                      <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                      <span className="text-[9px] font-black uppercase">Active</span>
                    </div>
                 </div>
                 
-                <div className="flex items-baseline gap-1">
-                   <span className="text-3xl font-black tracking-tighter">{totalGuests}</span>
-                   <span className="text-[10px] font-black uppercase opacity-60">Guests</span>
+                <div className="flex items-baseline gap-2">
+                   <span className="text-5xl font-black tracking-tighter leading-none">{totalGuests}</span>
+                   <span className="text-xs font-black uppercase opacity-60 tracking-widest">Guests</span>
                 </div>
-                <p className="text-[9px] font-bold opacity-80 uppercase tracking-tight mt-1">
-                   {activeOrdersCount} ACTIVE ORDERS
-                </p>
+                <div className="mt-3 flex items-center gap-2 opacity-90">
+                  <div className="w-1 h-4 bg-white/30 rounded-full"></div>
+                  <p className="text-[11px] font-bold uppercase tracking-tight">
+                     {activeOrdersCount} Open Orders
+                  </p>
+                </div>
              </div>
 
              <div className="flex justify-end relative z-10 mt-2">
-                <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-sm border border-white/10 group-hover:scale-110 transition-transform">
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-black/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10 group-hover:scale-110 transition-transform duration-500">
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                    </svg>
                 </div>
@@ -136,70 +160,68 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
           </div>
         </div>
 
-        {/* Search and Filters Container */}
-        <div className="space-y-4">
-           {/* Search Input */}
+        {/* Refined Search and Filters */}
+        <div className="space-y-5">
            <div className="relative group">
               <input 
                 type="text"
-                placeholder="Search table number..."
+                placeholder="Find a table..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-12 py-4 font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300 shadow-sm"
+                className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] px-14 py-5 font-bold text-slate-800 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300 shadow-sm text-lg"
               />
-              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 group-focus-within:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-lg hover:bg-slate-200">
-                  <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                <button onClick={() => setSearchQuery('')} className="absolute right-5 top-1/2 -translate-y-1/2 p-2 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">
+                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               )}
            </div>
 
-           {/* Quick Filters */}
-           <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
+           <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar scroll-smooth">
             <button
               onClick={() => setFilter('all')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-3 px-8 py-4 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
                 filter === 'all'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200 font-bold'
-                  : 'bg-white text-slate-500 border-slate-50 hover:border-slate-200'
+                  ? 'bg-slate-950 text-white border-slate-950 shadow-2xl shadow-slate-200 font-bold'
+                  : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'
               }`}
             >
-              <span className="text-sm">All</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${filter === 'all' ? 'bg-white/20' : 'bg-slate-100'}`}>{tables.length}</span>
+              <span className="text-sm">Overview</span>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${filter === 'all' ? 'bg-white/10' : 'bg-slate-100 text-slate-400'}`}>{tables.length}</span>
             </button>
 
             <button
               onClick={() => setFilter('occupied')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-3 px-8 py-4 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
                 filter === 'occupied'
-                  ? 'bg-orange-500 text-white border-orange-500 shadow-xl shadow-orange-100 font-bold'
-                  : 'bg-white text-slate-500 border-slate-50 hover:border-slate-200'
+                  ? 'bg-orange-500 text-white border-orange-500 shadow-2xl shadow-orange-100 font-bold'
+                  : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'
               }`}
             >
-              <div className={`w-2 h-2 rounded-full ${filter === 'occupied' ? 'bg-white' : 'bg-orange-500'}`}></div>
+              <div className={`w-2.5 h-2.5 rounded-full ${filter === 'occupied' ? 'bg-white' : 'bg-orange-500 animate-pulse'}`}></div>
               <span className="text-sm">Occupied</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${filter === 'occupied' ? 'bg-white/20' : 'bg-orange-50 text-orange-600'}`}>{occupiedCount}</span>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${filter === 'occupied' ? 'bg-white/20' : 'bg-orange-50 text-orange-600'}`}>{occupiedCount}</span>
             </button>
 
             <button
               onClick={() => setFilter('inactive')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-3 px-8 py-4 rounded-2xl border-2 transition-all whitespace-nowrap active:scale-95 ${
                 filter === 'inactive'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-100 font-bold'
-                  : 'bg-white text-slate-500 border-slate-50 hover:border-slate-200'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xl shadow-emerald-100 font-bold'
+                  : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'
               }`}
             >
-              <div className={`w-2 h-2 rounded-full ${filter === 'inactive' ? 'bg-white' : 'bg-emerald-500'}`}></div>
+              <div className={`w-2.5 h-2.5 rounded-full ${filter === 'inactive' ? 'bg-white' : 'bg-emerald-500'}`}></div>
               <span className="text-sm">Available</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${filter === 'inactive' ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'}`}>{tables.length - occupiedCount}</span>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${filter === 'inactive' ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'}`}>{tables.length - occupiedCount}</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Grid: Smaller, modern tiles */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
+      {/* Grid: Modern Interactive Tiles */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
         {filteredTables.length > 0 ? (
           filteredTables.map((table) => (
             <button
@@ -207,44 +229,49 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
               onClick={() => table.status === 'occupied' && onSelectTable(table.table_no)}
               disabled={table.status !== 'occupied'}
               className={`
-                relative aspect-[4/5] flex flex-col items-center justify-center rounded-2xl sm:rounded-[2rem] shadow-sm transition-all duration-300 group
+                relative aspect-[4/5] flex flex-col items-center justify-center rounded-[2rem] shadow-sm transition-all duration-500 group overflow-hidden
                 ${table.status === 'occupied' 
-                  ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-200/40 active:scale-90 cursor-pointer border-b-4 border-orange-600/30' 
+                  ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-100 active:scale-95 cursor-pointer border-b-4 border-orange-600/30' 
                   : 'bg-white text-slate-300 border border-slate-100 opacity-60 cursor-not-allowed'}
               `}
             >
-              <span className={`text-[8px] sm:text-[9px] uppercase font-black tracking-[0.15em] mb-1 ${table.status === 'occupied' ? 'text-white/80' : 'text-slate-400'}`}>
-                T-No
+              {/* Internal Glow for Occupied */}
+              {table.status === 'occupied' && (
+                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              )}
+
+              <span className={`text-[9px] uppercase font-black tracking-[0.2em] mb-2 ${table.status === 'occupied' ? 'text-white/70' : 'text-slate-400'}`}>
+                Table
               </span>
               
-              <span className={`text-2xl sm:text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-sm' : 'text-slate-200'}`}>
+              <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-md' : 'text-slate-200'}`}>
                 {table.table_no}
               </span>
               
               {table.guest_count > 0 && table.status === 'occupied' && (
-                  <div className="absolute bottom-3 flex items-center gap-1 px-2 py-0.5 bg-black/10 rounded-full backdrop-blur-sm">
-                    <span className="text-[10px] font-black">{table.guest_count}</span>
-                    <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
+                  <div className="absolute bottom-4 flex items-center gap-1.5 px-3 py-1 bg-black/10 rounded-full backdrop-blur-sm border border-white/10">
+                    <span className="text-[11px] font-black">{table.guest_count}</span>
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
                   </div>
               )}
 
-              <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${table.status === 'occupied' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-slate-100'}`}></div>
+              <div className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${table.status === 'occupied' ? 'bg-white shadow-[0_0_12px_rgba(255,255,255,1)]' : 'bg-slate-100'}`}></div>
 
               {table.status === 'inactive' && (
-                <div className="absolute bottom-3">
-                   <span className="text-[7px] font-black uppercase tracking-widest text-slate-300 bg-slate-50 px-2 py-0.5 rounded-md">Empty</span>
+                <div className="absolute bottom-4">
+                   <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-300 bg-slate-50 px-3 py-1 rounded-lg">Ready</span>
                 </div>
               )}
             </button>
           ))
         ) : (
-          <div className="col-span-full py-20 text-center animate-in fade-in zoom-in duration-500">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 rounded-full mb-6">
-              <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="col-span-full py-24 text-center animate-in fade-in zoom-in duration-700">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-slate-100 rounded-[2.5rem] mb-8 shadow-inner">
+              <svg className="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p className="text-slate-400 font-black uppercase tracking-widest text-sm">No tables found</p>
+            <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-sm">No tables match your filter</p>
           </div>
         )}
       </div>
