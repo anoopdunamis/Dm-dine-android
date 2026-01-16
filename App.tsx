@@ -191,6 +191,13 @@ const App: React.FC = () => {
         if (apiStatus.includes('initial') || apiStatus.includes('cart')) mappedStatus = OrderStatus.CART;
         else if (apiStatus.includes('placed')) mappedStatus = OrderStatus.OCCUPIED;
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
+        
+        // Handle preferences from '@' separated string
+        const prefString = o.food_preferencess_names || '';
+        const mappedPreferences = prefString 
+          ? prefString.split('@').filter(Boolean).map((p: string) => ({ name: p.trim(), price: 0 }))
+          : [];
+
         return {
           id: String(o.id || ''),
           food_name: o.food_name || 'Item',
@@ -199,7 +206,7 @@ const App: React.FC = () => {
           status: mappedStatus,
           sub_id: String(o.sub_id || ''),
           master_order_id: String(o.order_id || o.master_order_id || ''),
-          preferences: [],
+          preferences: mappedPreferences,
           order_taken_by: o.order_taken_by || 'Staff',
           note: o.food_note || o.note || '',
           food_type: o.food_type,
@@ -254,7 +261,7 @@ const App: React.FC = () => {
             id: String(userData.id || ''), 
             name: userData.name || user, 
             role: userData.user_type === '1' ? 'Admin' : 'Staff', 
-            restaurantName: response.restaurant_name 
+            restaurantName: userData.restaurant_name
           },
           view: 'main'
         }));

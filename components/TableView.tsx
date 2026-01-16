@@ -192,6 +192,16 @@ const TableView: React.FC<TableViewProps> = ({
                   <div key={item.id} className="p-5 flex justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
                       <span className="font-bold text-slate-900">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></span>
+                      {/* Item Preferences */}
+                      {item.preferences && item.preferences.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {item.preferences.map((pref, idx) => (
+                            <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              {pref.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <span className="font-black text-slate-900">AED {item.food_item_price * item.food_quantity}</span>
@@ -233,6 +243,18 @@ const TableView: React.FC<TableViewProps> = ({
                          <span className="text-[9px] font-black text-slate-400 uppercase">{item.status}</span>
                       </div>
                       <p className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></p>
+                      
+                      {/* Item Preferences */}
+                      {item.preferences && item.preferences.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {item.preferences.map((pref, idx) => (
+                            <span key={idx} className="bg-slate-50 text-slate-400 border border-slate-100 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              {pref.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       {item.note && <p className="mt-2 p-2 bg-indigo-50 rounded-xl text-[10px] text-indigo-600 font-bold italic">{item.note}</p>}
                     </div>
                     <div className="text-right flex flex-col items-end">

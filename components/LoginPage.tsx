@@ -114,7 +114,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
         <div className="mt-8 pt-8 border-t border-slate-50 text-center">
             <p className="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em]">
-                Dyna-Menu Security Protocol
+                www.Dyna-Menu.com 
             </p>
         </div>
       </div>

@@ -42,14 +42,6 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
 
         <div className="flex justify-between items-center mb-10 relative z-10">
           <div className="flex gap-5 items-center">
-            {/* Premium Logo Mark */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-              <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center shadow-2xl rotate-3 group-hover:rotate-0 transition-all duration-500 relative">
-                <span className="text-white font-black text-2xl italic">D</span>
-              </div>
-            </div>
-            
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <h1 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight leading-none">
@@ -60,18 +52,9 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
                   <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Live Sync</span>
                 </div>
               </div>
-              <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 ml-1"> { restaurantName } Dashboard</p>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 ml-1"> Dashboard</p>
             </div>
           </div>
-
-          {onInstall && (
-            <button 
-              onClick={onInstall}
-              className="hidden sm:block bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl shadow-xl shadow-indigo-100 active:scale-95 transition-all"
-            >
-              Pro Suite
-            </button>
-          )}
         </div>
 
         {/* Dynamic Shift Insight Cards */}
