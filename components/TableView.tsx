@@ -32,9 +32,18 @@ const TableView: React.FC<TableViewProps> = ({
   // Pull to refresh states
   const [pullOffset, setPullOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const isPulling = useRef(false);
+
+  // International Currency Formatter
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-AE', {
+      style: 'currency',
+      currency: 'AED',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   const cartItems = orders.filter(o => o.status === OrderStatus.CART);
   const activeItems = orders.filter(o => o.status !== OrderStatus.CART);
@@ -204,14 +213,14 @@ const TableView: React.FC<TableViewProps> = ({
                       )}
                     </div>
                     <div className="text-right">
-                      <span className="font-black text-slate-900">AED {item.food_item_price * item.food_quantity}</span>
+                      <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="block mt-2 text-[9px] font-black text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl uppercase">Remove</button>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-xl font-black">AED {cartTotal}</p>
+                <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
                 <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button>
               </div>
             </section>
@@ -258,7 +267,7 @@ const TableView: React.FC<TableViewProps> = ({
                       {item.note && <p className="mt-2 p-2 bg-indigo-50 rounded-xl text-[10px] text-indigo-600 font-bold italic">{item.note}</p>}
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      <span className="font-black text-slate-900">AED {item.food_item_price * item.food_quantity}</span>
+                      <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       <div className="flex gap-2 mt-3">
                         <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="text-[9px] font-black text-rose-500 border border-rose-100 px-3 py-2 rounded-xl bg-white uppercase">Delete</button>
                         {item.status === OrderStatus.OCCUPIED && (
@@ -277,11 +286,24 @@ const TableView: React.FC<TableViewProps> = ({
           {/* Bill Total Card */}
           {(activeItems.length > 0 || cartItems.length > 0) && (
             <div className="p-6 bg-slate-900 rounded-3xl text-white shadow-xl">
-              <div className="flex justify-between items-center text-xs opacity-60 mb-1 font-bold uppercase tracking-widest"><span>Subtotal</span><span>AED {activeTotal + cartTotal}</span></div>
-              <div className="flex justify-between items-center text-xs opacity-60 mb-4 font-bold uppercase tracking-widest"><span>Tax/Service</span><span>AED {taxValue}</span></div>
+              <div className="flex justify-between items-center text-xs opacity-60 mb-1 font-bold uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span>{formatCurrency(activeTotal + cartTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs opacity-60 mb-4 font-bold uppercase tracking-widest">
+                <span>Tax/Service</span>
+                <span>{formatCurrency(taxValue)}</span>
+              </div>
               <div className="pt-4 border-t border-white/10 flex justify-between items-end">
-                <div><p className="text-[9px] text-white/50 font-black uppercase mb-1">Total Bill</p><h3 className="text-2xl font-black tracking-tight">Grand Total</h3></div>
-                <div className="text-right"><span className="text-3xl font-black text-indigo-400 tracking-tighter">AED {grandTotal}</span></div>
+                <div>
+                  <p className="text-[9px] text-white/50 font-black uppercase mb-1">Total Bill</p>
+                  <h3 className="text-2xl font-black tracking-tight">Grand Total</h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-indigo-400 tracking-tighter">
+                    {formatCurrency(grandTotal)}
+                  </span>
+                </div>
               </div>
             </div>
           )}
