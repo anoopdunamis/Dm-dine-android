@@ -231,10 +231,12 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
                 {table.table_no}
               </span>
               
-              {table.guest_count > 0 && table.status === 'occupied' && (
-                  <div className="absolute bottom-4 flex items-center gap-1.5 px-3 py-1 bg-black/10 rounded-full backdrop-blur-sm border border-white/10">
-                    <span className="text-[11px] font-black">{table.guest_count}</span>
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
+              {table.status === 'occupied' && (
+                  <div className="absolute bottom-4 flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
+                    <span className="text-[11px] font-black">{table.guest_count || 0}</span>
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                    </svg>
                   </div>
               )}
 
