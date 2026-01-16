@@ -48,7 +48,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
              </svg>
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">Waiter Login</h2>
-          <p className="text-slate-500 mt-2 font-medium">Enter credentials to start your shift</p>
+          <p className="text-slate-500 mt-2 font-medium">Enter credentials to start </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
