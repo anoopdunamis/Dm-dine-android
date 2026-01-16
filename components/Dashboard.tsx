@@ -7,11 +7,21 @@ interface DashboardProps {
   onSelectTable: (tableNo: string) => void;
   onInstall?: () => void;
   restaurantName?: string | null;
+  isOnline: boolean;
+  syncError: boolean;
 }
 
 type FilterStatus = 'all' | 'occupied' | 'inactive';
 
-const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, onInstall, restaurantName }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  tables, 
+  orders, 
+  onSelectTable, 
+  onInstall, 
+  restaurantName,
+  isOnline,
+  syncError
+}) => {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -33,6 +43,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (occupancyRate / 100) * circumference;
 
+  const showOffline = !isOnline || syncError;
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
       <header className="mb-10 relative">
@@ -47,9 +59,11 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
                 <h1 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight leading-none">
                   {restaurantName || 'Main Floor'}
                 </h1>
-                <div className="inline-flex items-center gap-1.5 bg-white shadow-sm px-3 py-1 rounded-full border border-slate-100 self-start sm:self-auto">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Live Sync</span>
+                <div className={`inline-flex items-center gap-1.5 bg-white shadow-sm px-3 py-1 rounded-full border self-start sm:self-auto transition-colors duration-500 ${showOffline ? 'border-rose-100' : 'border-slate-100'}`}>
+                  <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] ${showOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}></div>
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${showOffline ? 'text-rose-500' : 'text-slate-600'}`}>
+                    {showOffline ? 'Offline' : 'Live Sync'}
+                  </span>
                 </div>
               </div>
               <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 ml-1"> Dashboard</p>
@@ -59,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
 
         {/* Dynamic Shift Insight Cards */}
         <div className="grid grid-cols-2 gap-4 mb-10">
-          {/* Creative Component: Floor Load (Replacing Occupancy) */}
+          {/* Creative Component: Floor Load */}
           <div className="bg-slate-950 rounded-[2.5rem] p-6 text-white shadow-2xl shadow-slate-200/50 relative overflow-hidden flex flex-col justify-between aspect-square sm:aspect-auto">
              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
              
@@ -104,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
              </div>
           </div>
 
-          {/* Creative Component: Service Pulse (Replacing Total Guests) */}
+          {/* Creative Component: Service Pulse */}
           <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[2.5rem] p-6 text-white shadow-2xl shadow-emerald-200/50 relative overflow-hidden group flex flex-col justify-between aspect-square sm:aspect-auto">
              <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <svg className="w-full h-full animate-[drift_20s_linear_infinite]" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -115,9 +129,9 @@ const Dashboard: React.FC<DashboardProps> = ({ tables, orders, onSelectTable, on
              <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Service Pulse</p>
-                   <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full backdrop-blur-md border border-white/20">
-                      <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                      <span className="text-[9px] font-black uppercase">Active</span>
+                   <div className={`flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border ${showOffline ? 'bg-rose-500/20 border-rose-100/20' : 'bg-white/20 border-white/20'}`}>
+                      <div className={`w-2 h-2 rounded-full ${showOffline ? 'bg-rose-300' : 'bg-white animate-ping'}`}></div>
+                      <span className="text-[9px] font-black uppercase">{showOffline ? 'Halted' : 'Active'}</span>
                    </div>
                 </div>
                 

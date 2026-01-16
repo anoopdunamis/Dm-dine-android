@@ -14,6 +14,8 @@ const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncError, setSyncError] = useState(false);
   
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state_v2');
@@ -47,7 +49,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,14 +171,15 @@ const App: React.FC = () => {
         return {
           table_no: String(t.table_no || t.id || '??'),
           status: (rawStatus === 'occupied' || rawStatus === '1') ? 'occupied' : 'inactive',
-          // Prioritize guest_order_type as per user request
           guest_count: Number(t.guest_order_type || t.guest_count || 0),
           tax: Number(t.tax || 0),
           master_order_id: t.master_order_id || null
         };
       });
       setState(prev => ({ ...prev, tables: mappedTables }));
+      setSyncError(false);
     } catch (err: any) {
+      setSyncError(true);
       if (!silent) setErrorStatus(`Table Sync: ${err.message}`);
     } finally {
       if (!silent) setIsLoading(false);
@@ -193,7 +206,6 @@ const App: React.FC = () => {
         else if (apiStatus.includes('placed')) mappedStatus = OrderStatus.OCCUPIED;
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
         
-        // Handle preferences from '@' separated string
         const prefString = o.food_preferencess_names || '';
         const mappedPreferences = prefString 
           ? prefString.split('@').filter(Boolean).map((p: string) => ({ name: p.trim(), price: 0 }))
@@ -215,7 +227,9 @@ const App: React.FC = () => {
         };
       });
       setState(prev => ({ ...prev, orders: mappedOrders, orderInfo }));
+      setSyncError(false);
     } catch (err: any) {
+      setSyncError(true);
       if (!silent) setErrorStatus(`Order Sync: ${err.message}`);
     } finally {
       if (!silent) setIsLoading(false);
@@ -384,7 +398,17 @@ const App: React.FC = () => {
             onConfirmAll={handleConfirmAllItems}
             onRefresh={handleRefreshCurrentTable}
           />
-        ) : <Dashboard tables={state.tables} orders={state.orders} onSelectTable={handleSelectTable} restaurantName={state.user.restaurantName} onInstall={handleInstallClick} />}
+        ) : (
+          <Dashboard 
+            tables={state.tables} 
+            orders={state.orders} 
+            onSelectTable={handleSelectTable} 
+            restaurantName={state.user.restaurantName} 
+            onInstall={handleInstallClick} 
+            isOnline={isOnline}
+            syncError={syncError}
+          />
+        )}
       </main>
       <footer className="py-4 text-center bg-white border-t border-slate-100"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sync: <span className="text-slate-800">{state.rsId}</span></p></footer>
       <style>{`
