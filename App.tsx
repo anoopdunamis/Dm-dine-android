@@ -192,8 +192,8 @@ const App: React.FC = () => {
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
         
         const prefRawString = o.food_preferencess_names || '';
-        // Deduplicate preferences from the server response
-        const uniquePrefNames = Array.from(new Set(
+        // Fix for TS2345: Explicitly type the Set as string
+        const uniquePrefNames: string[] = Array.from(new Set<string>(
           prefRawString.split('@')
             .map((p: string) => p.trim())
             .filter(Boolean)

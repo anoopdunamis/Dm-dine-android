@@ -36,17 +36,17 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
           const currentPrefNames = item.preferences.map(p => p.name.trim());
           
           // DEDUPLICATE: Use a Map with lowercased keys to ensure case-insensitive uniqueness
-          // We keep the first version of the string we encounter to preserve some casing
+          // Fix for potential TS build issues: Explicitly typing the Map and results.
           const uniqueMap = new Map<string, string>();
           
           // Add preferences from the current item first
           currentPrefNames.forEach(name => {
-            if (!uniqueMap.has(name.toLowerCase())) {
+            if (name && !uniqueMap.has(name.toLowerCase())) {
               uniqueMap.set(name.toLowerCase(), name);
             }
           });
 
-          const uniqueInitial = Array.from(uniqueMap.values()).filter(Boolean);
+          const uniqueInitial: string[] = Array.from(uniqueMap.values()).filter(Boolean);
 
           setSelectedPrefs(uniqueInitial);
           initialMappingDone.current = true;
@@ -73,8 +73,10 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
       // Case-insensitive existence check
       const exists = prev.some(p => p.toLowerCase() === lowerName);
       if (exists) {
+        // Use functional filter to ensure we remove all case variants
         return prev.filter(p => p.toLowerCase() !== lowerName);
       } else {
+        // Add the new one while preserving current selections
         return [...prev, trimmedName];
       }
     });
@@ -99,7 +101,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
       }
     });
     
-    const uniqueList = Array.from(uniqueMap.values());
+    const uniqueList: string[] = Array.from(uniqueMap.values());
     const preferencesString = uniqueList.join('@');
     onConfirm(quantity, preferencesString);
   };
@@ -174,7 +176,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                 ) : filteredPrefs.length > 0 ? (
                   filteredPrefs.map((pref) => {
                     const prefName = pref.name || pref.id || 'Option';
-                    const isSelected = selectedPrefs.some(p => p.toLowerCase() === prefName.toLowerCase());
+                    // Robust check: Ensure we compare correctly with trim and lowercase
+                    const isSelected = selectedPrefs.some(p => p.trim().toLowerCase() === prefName.trim().toLowerCase());
                     return (
                       <button
                         key={pref.id}
