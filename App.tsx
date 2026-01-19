@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo } from './types';
+import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference } from './types';
 import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
@@ -219,6 +219,7 @@ const App: React.FC = () => {
 
         return {
           id: String(o.id || ''),
+          food_id: String(o.Item_Id || o.food_id || ''), // Capturing Item_Id for preferences API
           food_name: o.food_name || 'Item',
           food_item_price: Number(o.food_item_price || 0),
           food_quantity: Number(o.food_quantity || 1),
@@ -241,6 +242,24 @@ const App: React.FC = () => {
       if (!silent) setIsLoading(false);
     }
   }, []);
+
+  const fetchItemPreferences = useCallback(async (foodId: string): Promise<ItemPreference[]> => {
+    if (!stateRef.current.rsId || !foodId) return [];
+    try {
+      const response = await makeRequest(`${API_BASE_URL}api_item_preferencess.php`, {
+        body: JSON.stringify({ rs_id: stateRef.current.rsId, item_id: foodId })
+      });
+      // Handle various response structures
+      const prefs = response?.preferencess || (Array.isArray(response) ? response : []);
+      return prefs.map((p: any) => ({
+        id: String(p.id || ''),
+        name: p.name || p.food_preferencess || ''
+      }));
+    } catch (err) {
+      console.error("Failed to fetch preferences:", err);
+      return [];
+    }
+  }, []); // uses stateRef so safe to have empty deps
 
   useEffect(() => {
     if (state.view === 'splash') {
@@ -428,6 +447,7 @@ const App: React.FC = () => {
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
             onEditItem={handleEditItem}
+            onFetchItemPreferences={fetchItemPreferences}
             onConfirmAll={handleConfirmAllItems}
             onRefresh={handleRefreshCurrentTable}
           />

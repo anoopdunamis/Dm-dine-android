@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Table, OrderItem, OrderStatus, OrderInfo } from '../types';
+import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference } from '../types';
 import VerificationModal from './VerificationModal';
 import EditItemModal from './EditItemModal';
 
@@ -12,6 +12,7 @@ interface TableViewProps {
   onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
   onConfirmItem: (id: string, code: string, note: string) => Promise<boolean> | boolean;
   onEditItem: (id: string, quantity: number, preferences: string) => Promise<boolean> | boolean;
+  onFetchItemPreferences: (foodId: string) => Promise<ItemPreference[]>;
   onConfirmAll: (code: string, note: string) => Promise<boolean> | boolean;
   onRefresh: () => Promise<void>;
 }
@@ -25,6 +26,7 @@ const TableView: React.FC<TableViewProps> = ({
   onConfirm, 
   onConfirmItem, 
   onEditItem,
+  onFetchItemPreferences,
   onConfirmAll,
   onRefresh
 }) => {
@@ -304,7 +306,22 @@ const TableView: React.FC<TableViewProps> = ({
               </div>
             </section>
           ) : !cartItems.length && (
-              <div className="py-12 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200"><p className="text-slate-400 font-black uppercase text-xs">Table is empty</p></div>
+              <div className="py-20 flex flex-col items-center justify-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100 animate-in fade-in zoom-in duration-700">
+                <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-indigo-50/50">
+                  <svg className="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Ready for Service</h3>
+                <p className="text-slate-400 text-sm font-medium max-w-[240px] text-center px-4 leading-relaxed">
+                  This table is currently clear. Start adding delicious items to begin a new guest order!
+                </p>
+                <div className="mt-8 flex gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce delay-100"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce delay-200"></div>
+                </div>
+              </div>
           )}
 
           {/* Bill Total Card */}
@@ -339,6 +356,7 @@ const TableView: React.FC<TableViewProps> = ({
           item={targetItem}
           onClose={() => !isProcessing && setModalType(null)}
           onConfirm={handleEditSubmit}
+          onFetchPreferences={onFetchItemPreferences}
           isLoading={isProcessing}
         />
       )}

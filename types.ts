@@ -10,8 +10,14 @@ export interface Preference {
   price: number;
 }
 
+export interface ItemPreference {
+  id: string;
+  name: string;
+}
+
 export interface OrderItem {
   id: string;
+  food_id: string; // The database ID of the actual food item
   food_name: string;
   food_item_price: number;
   food_quantity: number;

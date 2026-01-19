@@ -14,6 +14,8 @@ export const initialTables: Table[] = [
 export const initialOrders: OrderItem[] = [
   {
     id: '1',
+    // Added missing food_id to comply with OrderItem interface
+    food_id: 'food_salmon_01',
     food_name: 'Grilled Salmon',
     food_item_price: 85,
     food_quantity: 1,
@@ -24,6 +26,8 @@ export const initialOrders: OrderItem[] = [
   },
   {
     id: '2',
+    // Added missing food_id to comply with OrderItem interface
+    food_id: 'food_beef_01',
     food_name: 'Beef Tenderloin',
     food_item_price: 145,
     food_quantity: 2,
@@ -36,6 +40,8 @@ export const initialOrders: OrderItem[] = [
   },
   {
     id: '3',
+    // Added missing food_id to comply with OrderItem interface
+    food_id: 'food_salad_01',
     food_name: 'Greek Salad',
     food_item_price: 45,
     food_quantity: 1,
