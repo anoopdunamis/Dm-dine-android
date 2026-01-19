@@ -252,8 +252,9 @@ const App: React.FC = () => {
       // Handle various response structures
       const prefs = response?.preferencess || (Array.isArray(response) ? response : []);
       return prefs.map((p: any) => ({
-        id: String(p.id || ''),
-        name: p.name || p.food_preferencess || ''
+        id: String(p.id || p.food_preferencess_id || ''),
+        // Mapping 'food_preferencess' as it's the standard field for this API
+        name: p.food_preferencess || p.name || p.preference_name || ''
       }));
     } catch (err) {
       console.error("Failed to fetch preferences:", err);

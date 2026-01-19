@@ -27,30 +27,34 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
         const prefs = await onFetchPreferences(item.food_id);
         if (!isMounted) return;
         
+        console.log("Fetched preferences:", prefs);
         setAvailablePrefs(prefs);
         
         // Match existing item preferences with available ones ONLY ONCE
         if (!initialMappingDone.current) {
           const currentPrefNames = item.preferences.map(p => p.name.trim().toLowerCase());
           const initialSelected = prefs
-            .filter(p => currentPrefNames.includes(p.name.trim().toLowerCase()))
+            .filter(p => p.name && currentPrefNames.includes(p.name.trim().toLowerCase()))
             .map(p => p.name);
           
           setSelectedPrefs(initialSelected);
           initialMappingDone.current = true;
         }
+      } catch (error) {
+        console.error("Error in EditItemModal fetch:", error);
       } finally {
         if (isMounted) setIsFetchingPrefs(false);
       }
     };
     loadPrefs();
     return () => { isMounted = false; };
-  }, [item.food_id, onFetchPreferences]); // Removed item.preferences to avoid sync loops
+  }, [item.food_id, onFetchPreferences]); 
 
   const handleIncrement = () => setQuantity(prev => prev + 1);
   const handleDecrement = () => setQuantity(prev => Math.max(1, prev - 1));
 
   const togglePreference = (prefName: string) => {
+    if (!prefName) return;
     setSelectedPrefs(prev => 
       prev.includes(prefName) 
         ? prev.filter(p => p !== prefName) 
@@ -61,9 +65,10 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
   const handleClearAll = () => setSelectedPrefs([]);
 
   const filteredPrefs = useMemo(() => {
-    return availablePrefs.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return availablePrefs.filter(p => {
+      const name = p.name || p.id || 'Unknown';
+      return name.toLowerCase().includes(searchQuery.toLowerCase());
+    });
   }, [availablePrefs, searchQuery]);
 
   const handleUpdate = () => {
@@ -148,11 +153,12 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                   </div>
                 ) : filteredPrefs.length > 0 ? (
                   filteredPrefs.map((pref) => {
-                    const isSelected = selectedPrefs.includes(pref.name);
+                    const prefName = pref.name || pref.id || 'Preference';
+                    const isSelected = selectedPrefs.includes(prefName);
                     return (
                       <button
                         key={pref.id}
-                        onClick={() => togglePreference(pref.name)}
+                        onClick={() => togglePreference(prefName)}
                         className={`
                           px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-tight transition-all duration-200 flex items-center gap-2
                           ${isSelected 
@@ -165,7 +171,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
                           </svg>
                         )}
-                        {pref.name}
+                        {prefName}
                       </button>
                     );
                   })
