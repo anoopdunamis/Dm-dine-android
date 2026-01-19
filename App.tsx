@@ -190,10 +190,17 @@ const App: React.FC = () => {
         if (apiStatus.includes('initial') || apiStatus.includes('cart')) mappedStatus = OrderStatus.CART;
         else if (apiStatus.includes('placed')) mappedStatus = OrderStatus.OCCUPIED;
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
-        const prefString = o.food_preferencess_names || '';
-        const mappedPreferences = prefString 
-          ? prefString.split('@').filter(Boolean).map((p: string) => ({ name: p.trim(), price: 0 }))
-          : [];
+        
+        const prefRawString = o.food_preferencess_names || '';
+        // Deduplicate preferences from the server response
+        const uniquePrefNames = Array.from(new Set(
+          prefRawString.split('@')
+            .map((p: string) => p.trim())
+            .filter(Boolean)
+        ));
+        
+        const mappedPreferences = uniquePrefNames.map((p: string) => ({ name: p, price: 0 }));
+
         return {
           id: String(o.id || ''),
           food_id: String(o.Item_Id || o.food_id || ''), 
@@ -349,8 +356,6 @@ const App: React.FC = () => {
     try {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
-      // Corrected from api_edit_order_item.php back to api_edit_item.php which is standard for this system
-      // Ensuring no spaces or incorrect names are in the filename string to resolve 404.
       await makeRequest(`${API_BASE_URL}api_edit_item.php`, {
         body: JSON.stringify({ 
           rs_id: state.rsId, 

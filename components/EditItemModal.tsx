@@ -33,20 +33,22 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
         
         // Initial setup of selected preferences from the current order item
         if (!initialMappingDone.current) {
-          const currentPrefNames = item.preferences.map(p => p.name.trim().toLowerCase());
+          const currentPrefNames = item.preferences.map(p => p.name.trim());
           
-          // Cross-reference with available ones to ensure we only select valid choices
-          const initialSelected = prefs
-            .filter(p => p.name && currentPrefNames.includes(p.name.trim().toLowerCase()))
-            .map(p => p.name);
+          // DEDUPLICATE: Use a Map with lowercased keys to ensure case-insensitive uniqueness
+          // We keep the first version of the string we encounter to preserve some casing
+          const uniqueMap = new Map<string, string>();
           
-          // If the order has preferences but they aren't in the available list, 
-          // we should still keep them as selected so they aren't lost on update
-          const orderOnlyPrefs = item.preferences
-            .map(p => p.name)
-            .filter(name => !prefs.some(ap => ap.name.toLowerCase() === name.toLowerCase()));
+          // Add preferences from the current item first
+          currentPrefNames.forEach(name => {
+            if (!uniqueMap.has(name.toLowerCase())) {
+              uniqueMap.set(name.toLowerCase(), name);
+            }
+          });
 
-          setSelectedPrefs([...initialSelected, ...orderOnlyPrefs]);
+          const uniqueInitial = Array.from(uniqueMap.values()).filter(Boolean);
+
+          setSelectedPrefs(uniqueInitial);
           initialMappingDone.current = true;
         }
       } catch (error) {
@@ -64,11 +66,18 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
 
   const togglePreference = (prefName: string) => {
     if (!prefName) return;
-    setSelectedPrefs(prev => 
-      prev.includes(prefName) 
-        ? prev.filter(p => p !== prefName) 
-        : [...prev, prefName]
-    );
+    const trimmedName = prefName.trim();
+    const lowerName = trimmedName.toLowerCase();
+
+    setSelectedPrefs(prev => {
+      // Case-insensitive existence check
+      const exists = prev.some(p => p.toLowerCase() === lowerName);
+      if (exists) {
+        return prev.filter(p => p.toLowerCase() !== lowerName);
+      } else {
+        return [...prev, trimmedName];
+      }
+    });
   };
 
   const handleClearAll = () => setSelectedPrefs([]);
@@ -81,7 +90,17 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
   }, [availablePrefs, searchQuery]);
 
   const handleUpdate = () => {
-    const preferencesString = selectedPrefs.join('@');
+    // FINAL DEDUPLICATE: Case-insensitive check before sending to server
+    const uniqueMap = new Map<string, string>();
+    selectedPrefs.forEach(p => {
+      const trimmed = p.trim();
+      if (trimmed && !uniqueMap.has(trimmed.toLowerCase())) {
+        uniqueMap.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    
+    const uniqueList = Array.from(uniqueMap.values());
+    const preferencesString = uniqueList.join('@');
     onConfirm(quantity, preferencesString);
   };
 
@@ -155,7 +174,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                 ) : filteredPrefs.length > 0 ? (
                   filteredPrefs.map((pref) => {
                     const prefName = pref.name || pref.id || 'Option';
-                    const isSelected = selectedPrefs.includes(prefName);
+                    const isSelected = selectedPrefs.some(p => p.toLowerCase() === prefName.toLowerCase());
                     return (
                       <button
                         key={pref.id}
