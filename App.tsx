@@ -108,16 +108,19 @@ const App: React.FC = () => {
     const method = 'POST';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
-    const params = new URLSearchParams();
+    
+    let bodyObj: any = {};
     if (options.body) {
       try {
-        const bodyObj = JSON.parse(options.body);
-        Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
-      } catch (e) { console.error("Payload parse error", e); }
+        bodyObj = JSON.parse(options.body);
+      } catch (e) {
+        console.error("Payload parse error", e);
+      }
     }
-    const serializedBody = params.toString();
+
     try {
       if (isNative) {
+        // CapacitorHttp handles serialization based on Content-Type header
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -125,7 +128,7 @@ const App: React.FC = () => {
             'Accept': 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          data: serializedBody, 
+          data: bodyObj, 
           connectTimeout: 20000,
           readTimeout: 20000
         });
@@ -136,6 +139,9 @@ const App: React.FC = () => {
         }
         throw new Error(response.data?.message || `Server Error ${response.status}`);
       } else {
+        const params = new URLSearchParams();
+        Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
+        
         const fetchOptions: RequestInit = {
           method,
           mode: 'cors',
@@ -144,7 +150,7 @@ const App: React.FC = () => {
             'Accept': 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          body: serializedBody
+          body: params.toString()
         };
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
@@ -332,6 +338,32 @@ const App: React.FC = () => {
     } catch (err: any) { setErrorStatus(`Confirm failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
+  const handleEditItem = async (itemId: string, quantity: number, preferences: string) => {
+    if (!state.rsId) return false;
+    setIsLoading(true);
+    try {
+      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
+      // Endpoint updated to include the space as specified in requirement
+      await makeRequest(`${API_BASE_URL}api_edit_item .php`, {
+        body: JSON.stringify({ 
+          rs_id: state.rsId, 
+          master_order_id: mId,
+          id: itemId, 
+          food_quantity: quantity, 
+          food_preferencess: preferences 
+        })
+      });
+      if (state.currentTable) fetchOrders(state.currentTable, mId);
+      return true;
+    } catch (err: any) { 
+      setErrorStatus(`Edit failed: ${err.message}`); 
+      return false; 
+    } finally { 
+      setIsLoading(false); 
+    }
+  };
+
   const handleConfirmAllItems = async (waiterCode: string, note: string) => {
     if (!state.rsId || !state.currentTable) return false;
     setIsLoading(true);
@@ -395,6 +427,7 @@ const App: React.FC = () => {
             onDelete={handleDeleteItem}
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
+            onEditItem={handleEditItem}
             onConfirmAll={handleConfirmAllItems}
             onRefresh={handleRefreshCurrentTable}
           />

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Table, OrderItem, OrderStatus, OrderInfo } from '../types';
 import VerificationModal from './VerificationModal';
+import EditItemModal from './EditItemModal';
 
 interface TableViewProps {
   table: Table;
@@ -10,6 +11,7 @@ interface TableViewProps {
   onDelete: (id: string, code: string) => Promise<boolean> | boolean;
   onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
   onConfirmItem: (id: string, code: string, note: string) => Promise<boolean> | boolean;
+  onEditItem: (id: string, quantity: number, preferences: string) => Promise<boolean> | boolean;
   onConfirmAll: (code: string, note: string) => Promise<boolean> | boolean;
   onRefresh: () => Promise<void>;
 }
@@ -22,10 +24,11 @@ const TableView: React.FC<TableViewProps> = ({
   onDelete, 
   onConfirm, 
   onConfirmItem, 
+  onEditItem,
   onConfirmAll,
   onRefresh
 }) => {
-  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | null>(null);
+  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | 'edit' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -128,7 +131,21 @@ const TableView: React.FC<TableViewProps> = ({
     }
   };
 
+  const handleEditSubmit = async (quantity: number, preferences: string) => {
+    if (!targetId) return;
+    setIsProcessing(true);
+    try {
+      if (await onEditItem(targetId, quantity, preferences)) {
+        setModalType(null);
+        setTargetId(null);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const isPaid = orderInfo?.payment_status?.toLowerCase().includes('paid') && !orderInfo?.payment_status?.toLowerCase().includes('not');
+  const targetItem = orders.find(o => o.id === targetId);
 
   return (
     <div 
@@ -212,9 +229,12 @@ const TableView: React.FC<TableViewProps> = ({
                         </div>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end">
                       <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
-                      <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="block mt-2 text-[9px] font-black text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl uppercase">Remove</button>
+                      <div className="flex gap-2 mt-2">
+                        {/* Edit button removed from Cart as per "only for placed order items" request */}
+                        <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="text-[9px] font-black text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl uppercase">Remove</button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -268,10 +288,14 @@ const TableView: React.FC<TableViewProps> = ({
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
-                      <div className="flex gap-2 mt-3">
+                      <div className="flex flex-wrap justify-end gap-2 mt-3">
+                        {/* Edit is only allowed for placed order items (OrderStatus.OCCUPIED) */}
+                        {item.status === OrderStatus.OCCUPIED && (
+                          <button onClick={() => { setTargetId(item.id); setModalType('edit'); }} className="text-[9px] font-black text-indigo-600 border border-indigo-100 px-3 py-2 rounded-xl bg-white uppercase">Edit</button>
+                        )}
                         <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="text-[9px] font-black text-rose-500 border border-rose-100 px-3 py-2 rounded-xl bg-white uppercase">Delete</button>
                         {item.status === OrderStatus.OCCUPIED && (
-                          <button onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} className="text-[9px] font-black text-indigo-600 border border-indigo-100 px-3 py-2 rounded-xl bg-white uppercase">Confirm</button>
+                          <button onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} className="text-[9px] font-black text-emerald-600 border border-emerald-100 px-3 py-2 rounded-xl bg-white uppercase">Confirm</button>
                         )}
                       </div>
                     </div>
@@ -310,7 +334,16 @@ const TableView: React.FC<TableViewProps> = ({
         </div>
       </div>
 
-      {modalType && (
+      {modalType === 'edit' && targetItem && (
+        <EditItemModal 
+          item={targetItem}
+          onClose={() => !isProcessing && setModalType(null)}
+          onConfirm={handleEditSubmit}
+          isLoading={isProcessing}
+        />
+      )}
+
+      {(modalType && modalType !== 'edit') && (
         <VerificationModal 
           type={(modalType === 'confirm' || modalType === 'confirm_item' || modalType === 'confirm_all') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}
