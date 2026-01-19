@@ -16,7 +16,6 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
   const [isFetchingPrefs, setIsFetchingPrefs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Use a ref to track if initial mapping has been done
   const initialMappingDone = React.useRef(false);
 
   useEffect(() => {
@@ -24,31 +23,35 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
     const loadPrefs = async () => {
       setIsFetchingPrefs(true);
       try {
+        console.log("EditItemModal - Fetching for food_id:", item.food_id);
         const prefs = await onFetchPreferences(item.food_id);
+        
         if (!isMounted) return;
         
-        console.log("Fetched preferences:", prefs);
+        console.log("EditItemModal - Resulting List:", prefs);
         setAvailablePrefs(prefs);
         
-        // Match existing item preferences with available ones ONLY ONCE
-        if (!initialMappingDone.current) {
+        // Match existing item preferences with newly fetched available ones ONLY ONCE
+        if (!initialMappingDone.current && prefs.length > 0) {
           const currentPrefNames = item.preferences.map(p => p.name.trim().toLowerCase());
           const initialSelected = prefs
             .filter(p => p.name && currentPrefNames.includes(p.name.trim().toLowerCase()))
             .map(p => p.name);
           
-          setSelectedPrefs(initialSelected);
+          if (initialSelected.length > 0) {
+            setSelectedPrefs(initialSelected);
+          }
           initialMappingDone.current = true;
         }
       } catch (error) {
-        console.error("Error in EditItemModal fetch:", error);
+        console.error("Error in EditItemModal preference fetch:", error);
       } finally {
         if (isMounted) setIsFetchingPrefs(false);
       }
     };
     loadPrefs();
     return () => { isMounted = false; };
-  }, [item.food_id, onFetchPreferences]); 
+  }, [item.food_id, onFetchPreferences, item.preferences]); 
 
   const handleIncrement = () => setQuantity(prev => prev + 1);
   const handleDecrement = () => setQuantity(prev => Math.max(1, prev - 1));
@@ -66,7 +69,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
 
   const filteredPrefs = useMemo(() => {
     return availablePrefs.filter(p => {
-      const name = p.name || p.id || 'Unknown';
+      const name = p.name || p.id || 'Option';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
     });
   }, [availablePrefs, searchQuery]);
@@ -96,7 +99,6 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
           </div>
 
           <div className="flex-grow overflow-y-auto space-y-8 pr-2 custom-scrollbar mt-6">
-            {/* Quantity Selector */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Quantity</label>
               <div className="flex items-center justify-between bg-slate-50 border-2 border-slate-100 rounded-3xl p-2">
@@ -117,21 +119,14 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
               </div>
             </div>
 
-            {/* Preferences Multi-Select */}
             <div className="space-y-4">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Food Preferences</label>
                 {selectedPrefs.length > 0 && (
-                  <button 
-                    onClick={handleClearAll}
-                    className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600"
-                  >
-                    Clear All
-                  </button>
+                  <button onClick={handleClearAll} className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600">Clear All</button>
                 )}
               </div>
 
-              {/* Search Bar */}
               <div className="relative">
                 <input 
                   type="text"
@@ -153,7 +148,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                   </div>
                 ) : filteredPrefs.length > 0 ? (
                   filteredPrefs.map((pref) => {
-                    const prefName = pref.name || pref.id || 'Preference';
+                    const prefName = pref.name || pref.id || 'Option';
                     const isSelected = selectedPrefs.includes(prefName);
                     return (
                       <button
@@ -187,43 +182,21 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-8 shrink-0">
-            <button
-              onClick={onClose}
-              disabled={isLoading}
-              className="py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50"
-            >
-              Cancel
-            </button>
+            <button onClick={onClose} className="py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 active:scale-95 transition-all">Cancel</button>
             <button
               onClick={handleUpdate}
               disabled={isLoading || isFetchingPrefs}
-              className={`
-                py-4 rounded-2xl font-black text-white shadow-xl shadow-indigo-100 bg-indigo-600 active:scale-95 transition-all flex items-center justify-center gap-2
-                ${(isLoading || isFetchingPrefs) ? 'opacity-50' : ''}
-              `}
+              className={`py-4 rounded-2xl font-black text-white shadow-xl shadow-indigo-100 bg-indigo-600 active:scale-95 transition-all flex items-center justify-center gap-2 ${(isLoading || isFetchingPrefs) ? 'opacity-50' : ''}`}
             >
-              {isLoading && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              )}
               Update
             </button>
           </div>
         </div>
       </div>
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
     </div>
   );

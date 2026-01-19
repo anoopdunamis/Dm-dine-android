@@ -38,7 +38,6 @@ const App: React.FC = () => {
   
   useEffect(() => { 
     stateRef.current = state;
-    // Persist essential state to localStorage
     const stateToSave = {
       isAuthenticated: state.isAuthenticated,
       user: state.user,
@@ -51,10 +50,8 @@ const App: React.FC = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
     return () => {
       clearInterval(timer);
       window.removeEventListener('online', handleOnline);
@@ -82,9 +79,7 @@ const App: React.FC = () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
   const cleanJsonResponse = (text: string): string => {
@@ -98,9 +93,7 @@ const App: React.FC = () => {
     const lastBrace = text.lastIndexOf('}');
     const lastBracket = text.lastIndexOf(']');
     const jsonEnd = Math.max(lastBrace, lastBracket);
-    if (jsonStart !== -1 && jsonEnd > jsonStart) {
-      return text.substring(jsonStart, jsonEnd + 1);
-    }
+    if (jsonStart !== -1 && jsonEnd > jsonStart) return text.substring(jsonStart, jsonEnd + 1);
     return text;
   };
 
@@ -108,26 +101,16 @@ const App: React.FC = () => {
     const method = 'POST';
     const platform = Capacitor.getPlatform();
     const isNative = platform === 'ios' || platform === 'android';
-    
     let bodyObj: any = {};
     if (options.body) {
-      try {
-        bodyObj = JSON.parse(options.body);
-      } catch (e) {
-        console.error("Payload parse error", e);
-      }
+      try { bodyObj = JSON.parse(options.body); } catch (e) { console.error("Payload parse error", e); }
     }
-
     try {
       if (isNative) {
-        // CapacitorHttp handles serialization based on Content-Type header
         const response = await CapacitorHttp.request({
           url,
           method,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
           data: bodyObj, 
           connectTimeout: 20000,
           readTimeout: 20000
@@ -141,15 +124,11 @@ const App: React.FC = () => {
       } else {
         const params = new URLSearchParams();
         Object.keys(bodyObj).forEach(key => params.append(key, bodyObj[key]));
-        
         const fetchOptions: RequestInit = {
           method,
           mode: 'cors',
           credentials: 'omit',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
           body: params.toString()
         };
         const response = await fetch(url, fetchOptions);
@@ -211,15 +190,13 @@ const App: React.FC = () => {
         if (apiStatus.includes('initial') || apiStatus.includes('cart')) mappedStatus = OrderStatus.CART;
         else if (apiStatus.includes('placed')) mappedStatus = OrderStatus.OCCUPIED;
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
-        
         const prefString = o.food_preferencess_names || '';
         const mappedPreferences = prefString 
           ? prefString.split('@').filter(Boolean).map((p: string) => ({ name: p.trim(), price: 0 }))
           : [];
-
         return {
           id: String(o.id || ''),
-          food_id: String(o.Item_Id || o.food_id || ''), // Capturing Item_Id for preferences API
+          food_id: String(o.Item_Id || o.food_id || ''), 
           food_name: o.food_name || 'Item',
           food_item_price: Number(o.food_item_price || 0),
           food_quantity: Number(o.food_quantity || 1),
@@ -246,21 +223,28 @@ const App: React.FC = () => {
   const fetchItemPreferences = useCallback(async (foodId: string): Promise<ItemPreference[]> => {
     if (!stateRef.current.rsId || !foodId) return [];
     try {
+      // Send both food_id and item_id as some API versions use different keys
       const response = await makeRequest(`${API_BASE_URL}api_item_preferencess.php`, {
-        body: JSON.stringify({ rs_id: stateRef.current.rsId, item_id: foodId })
+        body: JSON.stringify({ rs_id: stateRef.current.rsId, food_id: foodId, item_id: foodId })
       });
-      // Handle various response structures
-      const prefs = response?.preferencess || (Array.isArray(response) ? response : []);
-      return prefs.map((p: any) => ({
-        id: String(p.id || p.food_preferencess_id || ''),
-        // Mapping 'food_preferencess' as it's the standard field for this API
-        name: p.food_preferencess || p.name || p.preference_name || ''
-      }));
+      
+      // Extensive check for various list keys used in different DM-Outlet responses
+      const prefsList = response?.preferencess || 
+                        response?.item_preferencess || 
+                        response?.food_preferencess || 
+                        response?.p_list ||
+                        (Array.isArray(response) ? response : []);
+      
+      return prefsList.map((p: any) => ({
+        id: String(p.p_id || p.id || p.food_preferencess_id || Math.random().toString(36).substr(2, 9)),
+        // Mapping p_name as primary, with fallback to other common names
+        name: p.p_name || p.food_preferencess || p.name || p.preference_name || ''
+      })).filter((p: any) => p.name); // Filter out items with no name
     } catch (err) {
       console.error("Failed to fetch preferences:", err);
       return [];
     }
-  }, []); // uses stateRef so safe to have empty deps
+  }, []);
 
   useEffect(() => {
     if (state.view === 'splash') {
@@ -292,7 +276,6 @@ const App: React.FC = () => {
       });
       const userData = response.user || {};
       const rsId = String(userData.rs_id || response.rs_id || '');
-      
       if ((response.success === true || response.status === 'success') && rsId) {
         setState(prev => ({
           ...prev,
@@ -364,7 +347,6 @@ const App: React.FC = () => {
     try {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
-      // Endpoint updated to include the space as specified in requirement
       await makeRequest(`${API_BASE_URL}api_edit_item .php`, {
         body: JSON.stringify({ 
           rs_id: state.rsId, 
@@ -376,12 +358,7 @@ const App: React.FC = () => {
       });
       if (state.currentTable) fetchOrders(state.currentTable, mId);
       return true;
-    } catch (err: any) { 
-      setErrorStatus(`Edit failed: ${err.message}`); 
-      return false; 
-    } finally { 
-      setIsLoading(false); 
-    }
+    } catch (err: any) { setErrorStatus(`Edit failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
   const handleConfirmAllItems = async (waiterCode: string, note: string) => {
@@ -391,21 +368,11 @@ const App: React.FC = () => {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_confirm_all_items.php`, {
-        body: JSON.stringify({ 
-          rs_id: state.rsId, 
-          master_order_id: mId, 
-          waiter_code: waiterCode, 
-          note 
-        })
+        body: JSON.stringify({ rs_id: state.rsId, master_order_id: mId, waiter_code: waiterCode, note })
       });
       fetchOrders(state.currentTable, mId);
       return true;
-    } catch (err: any) {
-      setErrorStatus(`Bulk Confirm failed: ${err.message}`);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) { setErrorStatus(`Bulk Confirm failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
   const handleConfirmOrder = async (tableNo: string, waiterCode: string, note: string) => {
@@ -465,14 +432,6 @@ const App: React.FC = () => {
         )}
       </main>
       <footer className="py-4 text-center bg-white border-t border-slate-100"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sync: <span className="text-slate-800">{state.rsId}</span></p></footer>
-      <style>{`
-        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-        @keyframes drift {
-          0% { transform: translateX(-50%) skewY(0deg); }
-          50% { transform: translateX(0%) skewY(2deg); }
-          100% { transform: translateX(-50%) skewY(0deg); }
-        }
-      `}</style>
     </div>
   );
 };
