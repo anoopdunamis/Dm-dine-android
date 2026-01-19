@@ -217,26 +217,34 @@ const TableView: React.FC<TableViewProps> = ({
               </div>
               <div className="divide-y divide-slate-50">
                 {cartItems.map(item => (
-                  <div key={item.id} className="p-5 flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <span className="font-bold text-slate-900">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></span>
-                      {/* Item Preferences */}
-                      {item.preferences && item.preferences.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {item.preferences.map((pref, idx) => (
-                            <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                              {pref.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                      <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
-                      <div className="flex gap-2 mt-2">
-                        {/* Edit button removed from Cart as per "only for placed order items" request */}
-                        <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="text-[9px] font-black text-rose-500 bg-rose-50 px-3 py-1.5 rounded-xl uppercase">Remove</button>
+                  <div key={item.id} className="p-5 flex flex-col gap-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></span>
+                        {/* Item Preferences */}
+                        {item.preferences && item.preferences.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {item.preferences.map((pref, idx) => (
+                              <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                {pref.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                      <div className="text-right">
+                        <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Action Row for Cart */}
+                    <div className="flex gap-2 pt-2 border-t border-slate-50">
+                      <button 
+                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                        className="flex-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -267,39 +275,58 @@ const TableView: React.FC<TableViewProps> = ({
               </div>
               <div className="divide-y divide-slate-50">
                 {activeItems.map(item => (
-                  <div key={item.id} className="p-5 flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                         <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
-                         <span className="text-[9px] font-black text-slate-400 uppercase">{item.status}</span>
-                      </div>
-                      <p className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></p>
-                      
-                      {/* Item Preferences */}
-                      {item.preferences && item.preferences.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {item.preferences.map((pref, idx) => (
-                            <span key={idx} className="bg-slate-50 text-slate-400 border border-slate-100 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                              {pref.name}
-                            </span>
-                          ))}
+                  <div key={item.id} className="p-5 flex flex-col gap-4">
+                    {/* Header Row: Info + Price */}
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                           <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+                           <span className="text-[9px] font-black text-slate-400 uppercase">{item.status}</span>
                         </div>
-                      )}
+                        <p className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></p>
+                        
+                        {/* Item Preferences */}
+                        {item.preferences && item.preferences.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {item.preferences.map((pref, idx) => (
+                              <span key={idx} className="bg-slate-50 text-slate-400 border border-slate-100 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                {pref.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
-                      {item.note && <p className="mt-2 p-2 bg-indigo-50 rounded-xl text-[10px] text-indigo-600 font-bold italic">{item.note}</p>}
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                      <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
-                      <div className="flex flex-wrap justify-end gap-2 mt-3">
-                        {/* Edit is only allowed for placed order items (OrderStatus.OCCUPIED) */}
-                        {item.status === OrderStatus.OCCUPIED && (
-                          <button onClick={() => { setTargetId(item.id); setModalType('edit'); }} className="text-[9px] font-black text-indigo-600 border border-indigo-100 px-3 py-2 rounded-xl bg-white uppercase">Edit</button>
-                        )}
-                        <button onClick={() => { setTargetId(item.id); setModalType('delete'); }} className="text-[9px] font-black text-rose-500 border border-rose-100 px-3 py-2 rounded-xl bg-white uppercase">Delete</button>
-                        {item.status === OrderStatus.OCCUPIED && (
-                          <button onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} className="text-[9px] font-black text-emerald-600 border border-emerald-100 px-3 py-2 rounded-xl bg-white uppercase">Confirm</button>
-                        )}
+                        {item.note && <p className="mt-2 p-2 bg-indigo-50 rounded-xl text-[10px] text-indigo-600 font-bold italic">{item.note}</p>}
                       </div>
+                      <div className="text-right">
+                        <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
+                      </div>
+                    </div>
+
+                    {/* Button Action Row (Stacked on mobile) */}
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                      {item.status === OrderStatus.OCCUPIED && (
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('edit'); }} 
+                          className="flex-1 bg-white border-2 border-indigo-50 text-indigo-600 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                        className="flex-1 bg-white border-2 border-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                      >
+                        Delete
+                      </button>
+                      {item.status === OrderStatus.OCCUPIED && (
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} 
+                          className="flex-[2] bg-emerald-600 text-white text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-50"
+                        >
+                          Confirm
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
