@@ -28,19 +28,25 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
         
         if (!isMounted) return;
         
-        console.log("EditItemModal - Resulting List:", prefs);
+        console.log("EditItemModal - Available Choices:", prefs);
         setAvailablePrefs(prefs);
         
-        // Match existing item preferences with newly fetched available ones ONLY ONCE
-        if (!initialMappingDone.current && prefs.length > 0) {
+        // Initial setup of selected preferences from the current order item
+        if (!initialMappingDone.current) {
           const currentPrefNames = item.preferences.map(p => p.name.trim().toLowerCase());
+          
+          // Cross-reference with available ones to ensure we only select valid choices
           const initialSelected = prefs
             .filter(p => p.name && currentPrefNames.includes(p.name.trim().toLowerCase()))
             .map(p => p.name);
           
-          if (initialSelected.length > 0) {
-            setSelectedPrefs(initialSelected);
-          }
+          // If the order has preferences but they aren't in the available list, 
+          // we should still keep them as selected so they aren't lost on update
+          const orderOnlyPrefs = item.preferences
+            .map(p => p.name)
+            .filter(name => !prefs.some(ap => ap.name.toLowerCase() === name.toLowerCase()));
+
+          setSelectedPrefs([...initialSelected, ...orderOnlyPrefs]);
           initialMappingDone.current = true;
         }
       } catch (error) {

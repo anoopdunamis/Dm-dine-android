@@ -223,12 +223,15 @@ const App: React.FC = () => {
   const fetchItemPreferences = useCallback(async (foodId: string): Promise<ItemPreference[]> => {
     if (!stateRef.current.rsId || !foodId) return [];
     try {
-      // Send both food_id and item_id as some API versions use different keys
       const response = await makeRequest(`${API_BASE_URL}api_item_preferencess.php`, {
-        body: JSON.stringify({ rs_id: stateRef.current.rsId, food_id: foodId, item_id: foodId })
+        body: JSON.stringify({ 
+          rs_id: stateRef.current.rsId, 
+          food_id: foodId, 
+          item_id: foodId,
+          Item_Id: foodId 
+        })
       });
       
-      // Extensive check for various list keys used in different DM-Outlet responses
       const prefsList = response?.preferencess || 
                         response?.item_preferencess || 
                         response?.food_preferencess || 
@@ -237,9 +240,8 @@ const App: React.FC = () => {
       
       return prefsList.map((p: any) => ({
         id: String(p.p_id || p.id || p.food_preferencess_id || Math.random().toString(36).substr(2, 9)),
-        // Mapping p_name as primary, with fallback to other common names
         name: p.p_name || p.food_preferencess || p.name || p.preference_name || ''
-      })).filter((p: any) => p.name); // Filter out items with no name
+      })).filter((p: any) => p.name);
     } catch (err) {
       console.error("Failed to fetch preferences:", err);
       return [];
@@ -347,7 +349,9 @@ const App: React.FC = () => {
     try {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
-      await makeRequest(`${API_BASE_URL}api_edit_item .php`, {
+      // Corrected from api_edit_order_item.php back to api_edit_item.php which is standard for this system
+      // Ensuring no spaces or incorrect names are in the filename string to resolve 404.
+      await makeRequest(`${API_BASE_URL}api_edit_item.php`, {
         body: JSON.stringify({ 
           rs_id: state.rsId, 
           master_order_id: mId,
