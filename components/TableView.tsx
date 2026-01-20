@@ -62,6 +62,17 @@ const TableView: React.FC<TableViewProps> = ({
   const taxValue = Number(orderInfo?.tax || table.tax || 0);
   const grandTotal = cartTotal + activeTotal + taxValue;
 
+  // Manual Refresh Handler
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Pull to refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     const scrollContainer = e.currentTarget.closest('main') || document.documentElement;
@@ -81,21 +92,15 @@ const TableView: React.FC<TableViewProps> = ({
     const diffY = currentY - startY.current;
     
     // CRITICAL: If swipe is primarily horizontal, DO NOT trigger pull-to-refresh
-    // This allows the native iOS swipe-from-edge gesture to work.
     if (diffX > diffY) {
       isPulling.current = false;
       return;
     }
 
     if (diffY > 0) {
-      // Apply resistance
       const offset = Math.min(diffY * 0.4, 100);
       setPullOffset(offset);
-      
-      // Prevent scrolling while pulling down
-      if (offset > 5) {
-        if (e.cancelable) e.preventDefault();
-      }
+      if (offset > 5 && e.cancelable) e.preventDefault();
     }
   };
 
@@ -204,7 +209,15 @@ const TableView: React.FC<TableViewProps> = ({
                  <span className="text-[10px] text-indigo-500 font-black uppercase">ID: {orderInfo?.master_order_id || 'NEW'}</span>
               </div>
             </div>
-            <div className="w-12"></div>
+            {/* Manual Refresh Button */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleManualRefresh(); }} 
+              className="p-3 -mr-2 text-slate-600 rounded-full transition-all active:scale-90 hover:bg-slate-50 z-50 relative"
+            >
+              <svg className={`w-6 h-6 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           </div>
           <div className="flex divide-x divide-slate-100 bg-slate-50 border-t border-slate-100">
             <div className="flex-1 px-4 py-2.5">
@@ -235,7 +248,6 @@ const TableView: React.FC<TableViewProps> = ({
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
                         <span className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></span>
-                        {/* Item Preferences */}
                         {item.preferences && item.preferences.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {item.preferences.map((pref, idx) => (
@@ -251,7 +263,6 @@ const TableView: React.FC<TableViewProps> = ({
                       </div>
                     </div>
                     
-                    {/* Action Row for Cart */}
                     <div className="flex gap-2 pt-2 border-t border-slate-50">
                       <button 
                         onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
@@ -290,7 +301,6 @@ const TableView: React.FC<TableViewProps> = ({
               <div className="divide-y divide-slate-50">
                 {activeItems.map(item => (
                   <div key={item.id} className="p-5 flex flex-col gap-4">
-                    {/* Header Row: Info + Price */}
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -299,7 +309,6 @@ const TableView: React.FC<TableViewProps> = ({
                         </div>
                         <p className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></p>
                         
-                        {/* Item Preferences */}
                         {item.preferences && item.preferences.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {item.preferences.map((pref, idx) => (
@@ -317,7 +326,6 @@ const TableView: React.FC<TableViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Button Action Row (Stacked on mobile) */}
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                       {item.status === OrderStatus.OCCUPIED && (
                         <button 
@@ -357,15 +365,9 @@ const TableView: React.FC<TableViewProps> = ({
                 <p className="text-slate-400 text-sm font-medium max-w-[240px] text-center px-4 leading-relaxed">
                   This table is currently clear. Start adding delicious items to begin a new guest order!
                 </p>
-                <div className="mt-8 flex gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce delay-100"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce delay-200"></div>
-                </div>
               </div>
           )}
 
-          {/* Bill Total Card */}
           {(activeItems.length > 0 || cartItems.length > 0) && (
             <div className="p-6 bg-slate-900 rounded-3xl text-white shadow-xl">
               <div className="flex justify-between items-center text-xs opacity-60 mb-1 font-bold uppercase tracking-widest">
