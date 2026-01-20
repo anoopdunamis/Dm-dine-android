@@ -5,6 +5,7 @@ import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 
 // Configuration for API
 const API_ENABLED = true; 
@@ -45,6 +46,37 @@ const App: React.FC = () => {
     };
     localStorage.setItem('dinesync_state_v2', JSON.stringify(stateToSave));
   }, [state]);
+
+  // Handle browser/gesture back navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // If we move back and the current table state is set, clear it to show dashboard
+      if (stateRef.current.currentTable) {
+        setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Handle Capacitor hardware back button (Android)
+  useEffect(() => {
+    const backButtonHandler = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (stateRef.current.currentTable) {
+        // We are in a table, go back to dashboard
+        window.history.back();
+      } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
+        // We are at dashboard, let the OS minimize the app or exit
+        // We can explicitly call exit if we want, but letting default happen is safer
+        CapApp.exitApp();
+      }
+    });
+
+    return () => {
+      backButtonHandler.then(h => h.remove());
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -192,7 +224,6 @@ const App: React.FC = () => {
         else if (apiStatus.includes('delivered') || apiStatus.includes('prepared')) mappedStatus = OrderStatus.PREPARED;
         
         const prefRawString = o.food_preferencess_names || '';
-        // Fix for TS2345: Explicitly type the Set as string
         const uniquePrefNames: string[] = Array.from(new Set<string>(
           prefRawString.split('@')
             .map((p: string) => p.trim())
@@ -311,9 +342,21 @@ const App: React.FC = () => {
 
   const handleSelectTable = (tableNo: string) => {
     const t = state.tables.find(tbl => tbl.table_no === tableNo);
+    // Push state to browser history to enable gesture-based back navigation
+    window.history.pushState({ tableNo }, '');
     setState(prev => ({ ...prev, currentTable: tableNo, orderInfo: null }));
     fetchOrders(tableNo, t?.master_order_id);
   };
+
+  const handleBackToDashboard = useCallback(() => {
+    // Check if we pushed a state, if so go back in history which will trigger popstate
+    if (window.history.state?.tableNo) {
+      window.history.back();
+    } else {
+      // Fallback: Manually clear state
+      setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+    }
+  }, []);
 
   const handleRefreshCurrentTable = async () => {
     if (state.currentTable) {
@@ -419,7 +462,7 @@ const App: React.FC = () => {
             table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable, status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             orderInfo={state.orderInfo}
-            onBack={() => setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }))}
+            onBack={handleBackToDashboard}
             onDelete={handleDeleteItem}
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
