@@ -37,6 +37,7 @@ const TableView: React.FC<TableViewProps> = ({
   // Pull to refresh states
   const [pullOffset, setPullOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const startX = useRef(0);
   const startY = useRef(0);
   const isPulling = useRef(false);
 
@@ -65,6 +66,7 @@ const TableView: React.FC<TableViewProps> = ({
   const handleTouchStart = (e: React.TouchEvent) => {
     const scrollContainer = e.currentTarget.closest('main') || document.documentElement;
     if (scrollContainer.scrollTop <= 0) {
+      startX.current = e.touches[0].pageX;
       startY.current = e.touches[0].pageY;
       isPulling.current = true;
     }
@@ -73,16 +75,25 @@ const TableView: React.FC<TableViewProps> = ({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isPulling.current || isRefreshing) return;
     
+    const currentX = e.touches[0].pageX;
     const currentY = e.touches[0].pageY;
-    const diff = currentY - startY.current;
+    const diffX = Math.abs(currentX - startX.current);
+    const diffY = currentY - startY.current;
     
-    if (diff > 0) {
+    // CRITICAL: If swipe is primarily horizontal, DO NOT trigger pull-to-refresh
+    // This allows the native iOS swipe-from-edge gesture to work.
+    if (diffX > diffY) {
+      isPulling.current = false;
+      return;
+    }
+
+    if (diffY > 0) {
       // Apply resistance
-      const offset = Math.min(diff * 0.4, 100);
+      const offset = Math.min(diffY * 0.4, 100);
       setPullOffset(offset);
       
-      // Prevent scrolling while pulling
-      if (offset > 10) {
+      // Prevent scrolling while pulling down
+      if (offset > 5) {
         if (e.cancelable) e.preventDefault();
       }
     }
@@ -177,10 +188,13 @@ const TableView: React.FC<TableViewProps> = ({
         className="flex-grow flex flex-col transition-transform duration-300 ease-out z-10 bg-slate-50"
         style={{ transform: `translateY(${pullOffset}px)` }}
       >
-        <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-100">
+        <div className="sticky top-0 z-40 bg-white shadow-sm border-b border-slate-100">
           <div className="p-3 sm:p-4 flex items-center justify-between">
-            <button onClick={onBack} className="p-2 -ml-2 text-slate-600 rounded-full transition-all">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onBack(); }} 
+              className="p-3 -ml-2 text-slate-600 rounded-full transition-all active:scale-90 hover:bg-slate-50 z-50 relative"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div className="text-center flex-1">
               <h2 className="text-lg sm:text-xl font-black">Table {table.table_no}</h2>
@@ -190,7 +204,7 @@ const TableView: React.FC<TableViewProps> = ({
                  <span className="text-[10px] text-indigo-500 font-black uppercase">ID: {orderInfo?.master_order_id || 'NEW'}</span>
               </div>
             </div>
-            <div className="w-10"></div>
+            <div className="w-12"></div>
           </div>
           <div className="flex divide-x divide-slate-100 bg-slate-50 border-t border-slate-100">
             <div className="flex-1 px-4 py-2.5">

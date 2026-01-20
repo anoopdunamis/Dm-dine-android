@@ -47,36 +47,47 @@ const App: React.FC = () => {
     localStorage.setItem('dinesync_state_v2', JSON.stringify(stateToSave));
   }, [state]);
 
-  // Unified History and Back Gesture Management
+  // Unified History and Back Gesture Management (Driven by Hash)
   useEffect(() => {
-    // 1. Mark the current state as Dashboard if we are at root
-    if (!window.history.state) {
-      window.history.replaceState({ view: 'dashboard' }, '');
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      const historyState = event.state;
-      // If the state we just landed on is dashboard or null, clear the current table
-      if (!historyState || historyState.view === 'dashboard') {
-        setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
-      } else if (historyState.view === 'table' && historyState.tableNo) {
-        // Handle direct history navigation to a specific table if needed
-        setState(prev => ({ ...prev, currentTable: historyState.tableNo }));
+    const syncStateWithHash = () => {
+      const hash = window.location.hash;
+      console.log("Syncing with hash:", hash);
+      
+      if (hash === '#/dashboard' || !hash || hash === '#/' || hash === '') {
+        // Back to Dashboard
+        if (stateRef.current.currentTable !== null) {
+          setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+        }
+      } else if (hash.startsWith('#/table/')) {
+        // Navigated to Table
+        const tableNo = hash.replace('#/table/', '');
+        if (stateRef.current.currentTable !== tableNo) {
+          setState(prev => ({ ...prev, currentTable: tableNo }));
+        }
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('hashchange', syncStateWithHash);
+    
+    // On app initialization (after authentication check)
+    if (state.isAuthenticated && state.view === 'main') {
+      if (!window.location.hash || window.location.hash === '#/') {
+        // Use hash assignment to avoid Origin Errors in sandboxes
+        window.location.hash = '/dashboard';
+      }
+      syncStateWithHash();
+    }
+
+    return () => window.removeEventListener('hashchange', syncStateWithHash);
+  }, [state.isAuthenticated, state.view]);
 
   // Handle Capacitor hardware back button (specifically for Android)
   useEffect(() => {
     const backButtonHandler = CapApp.addListener('backButton', () => {
-      // If we are in a table view, use the history stack to go back
+      // In Capacitor/Android, history.back() correctly interacts with the hash stack
       if (stateRef.current.currentTable) {
         window.history.back();
       } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
-        // If at dashboard, let it minimize or show exit confirmation
         CapApp.exitApp();
       }
     });
@@ -130,10 +141,14 @@ const App: React.FC = () => {
     if (firstBrace !== -1 && firstBracket !== -1) jsonStart = Math.min(firstBrace, firstBracket);
     else if (firstBrace !== -1) jsonStart = firstBrace;
     else if (firstBracket !== -1) jsonStart = firstBracket;
+    
     const lastBrace = text.lastIndexOf('}');
     const lastBracket = text.lastIndexOf(']');
     const jsonEnd = Math.max(lastBrace, lastBracket);
-    if (jsonStart !== -1 && jsonEnd > jsonStart) return text.substring(jsonStart, jsonEnd + 1);
+    
+    if (jsonStart !== -1 && jsonEnd > jsonStart) {
+      return text.substring(jsonStart, jsonEnd + 1);
+    }
     return text;
   };
 
@@ -145,6 +160,7 @@ const App: React.FC = () => {
     if (options.body) {
       try { bodyObj = JSON.parse(options.body); } catch (e) { console.error("Payload parse error", e); }
     }
+    
     try {
       if (isNative) {
         const response = await CapacitorHttp.request({
@@ -157,8 +173,21 @@ const App: React.FC = () => {
         });
         const rawData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
         const cleanedText = cleanJsonResponse(rawData);
+        
         if (response.status >= 200 && response.status < 400) {
-          try { return JSON.parse(cleanedText); } catch (e) { throw new Error("Invalid server response format."); }
+          try { 
+            const trimmed = (cleanedText || '').trim();
+            if (!trimmed || trimmed === '' || (!trimmed.includes('{') && !trimmed.includes('['))) {
+              if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
+              if (url.includes('api_tables.php')) return { tables: [] };
+              return {};
+            }
+            return JSON.parse(cleanedText); 
+          } catch (e) { 
+            console.warn(`JSON Parse Failure (Native) for ${url}`);
+            if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
+            throw new Error("Invalid server response format."); 
+          }
         }
         throw new Error(response.data?.message || `Server Error ${response.status}`);
       } else {
@@ -174,11 +203,24 @@ const App: React.FC = () => {
         const response = await fetch(url, fetchOptions);
         const text = await response.text();
         const cleanedText = cleanJsonResponse(text);
+        
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        try { return JSON.parse(cleanedText); } catch (e) { throw new Error("Could not read server response."); }
+        
+        try { 
+          const trimmed = (cleanedText || '').trim();
+          if (!trimmed || trimmed === '' || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
+             if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
+             if (url.includes('api_tables.php')) return { tables: [] };
+             return {};
+          }
+          return JSON.parse(cleanedText); 
+        } catch (e) { 
+          if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
+          throw new Error("Could not read server response."); 
+        }
       }
     } catch (err: any) {
-      console.error(`API Error [${url}]:`, err);
+      console.error(`API Error [${url}]:`, err.message);
       throw err;
     }
   };
@@ -222,8 +264,10 @@ const App: React.FC = () => {
           master_order_id: masterOrderId || ''
         })
       });
+      
       let orderItems: any[] = response?.order_items || [];
       let orderInfo: OrderInfo | null = response?.orders_info?.[0] || null;
+      
       const mappedOrders: OrderItem[] = orderItems.map((o: any) => {
         let mappedStatus = OrderStatus.CONFIRMED;
         const apiStatus = String(o.order_item_status || '').toLowerCase();
@@ -305,6 +349,13 @@ const App: React.FC = () => {
   }, [state.view, state.currentTable, state.rsId]);
 
   useEffect(() => {
+    if (state.currentTable) {
+      const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
+      fetchOrders(state.currentTable, t?.master_order_id);
+    }
+  }, [state.currentTable]);
+
+  useEffect(() => {
     if (!state.isAuthenticated || state.view !== 'main' || !state.rsId) return;
     const interval = setInterval(() => {
       const cur = stateRef.current;
@@ -337,6 +388,7 @@ const App: React.FC = () => {
           },
           view: 'main'
         }));
+        window.location.hash = '/dashboard';
         return true;
       }
       throw new Error(response.message || 'Login failed');
@@ -346,24 +398,17 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setState(prev => ({ ...prev, isAuthenticated: false, view: 'login', currentTable: null, user: { id: null, name: null, role: null, restaurantName: null }, rsId: null }));
     localStorage.removeItem('dinesync_state_v2');
+    window.location.hash = '/';
   };
 
   const handleSelectTable = (tableNo: string) => {
-    const t = state.tables.find(tbl => tbl.table_no === tableNo);
-    // Push state to browser history to enable gesture-based back navigation
-    window.history.pushState({ view: 'table', tableNo }, '');
-    setState(prev => ({ ...prev, currentTable: tableNo, orderInfo: null }));
-    fetchOrders(tableNo, t?.master_order_id);
+    // Pure hash-driven navigation
+    window.location.hash = `/table/${tableNo}`;
   };
 
   const handleBackToDashboard = useCallback(() => {
-    // Strictly rely on window.history.back() to sync with operating system gestures
-    if (window.history.state?.view === 'table') {
-      window.history.back();
-    } else {
-      // Fallback: Manually clear state if history state is somehow missing
-      setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
-    }
+    // Rely on history API to trigger hashchange listener
+    window.history.back();
   }, []);
 
   const handleRefreshCurrentTable = async () => {
@@ -456,7 +501,9 @@ const App: React.FC = () => {
       {isLoading && <div className="fixed top-0 left-0 w-full h-1 bg-indigo-500 z-[70] overflow-hidden"><div className="w-full h-full bg-indigo-300 animate-[loading_1.5s_infinite]"></div></div>}
       <div className="max-w-4xl w-full mx-auto flex justify-between items-center px-4 py-3 bg-white border-b border-slate-100 z-50">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg"><span className="text-white font-black text-sm">{state.user.name?.[0]}</span></div>
+          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-white font-black text-sm">{state.user.name?.[0] || 'U'}</span>
+          </div>
           <div className="text-right ml-4"><p className="text-[9px] font-black text-indigo-500 uppercase">Sync</p><p className="text-xs font-black text-slate-600">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p></div>
         </div>
         <div className="flex gap-2">
