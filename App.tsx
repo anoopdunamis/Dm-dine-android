@@ -47,12 +47,21 @@ const App: React.FC = () => {
     localStorage.setItem('dinesync_state_v2', JSON.stringify(stateToSave));
   }, [state]);
 
-  // Handle browser/gesture back navigation
+  // Unified History and Back Gesture Management
   useEffect(() => {
+    // 1. Mark the current state as Dashboard if we are at root
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'dashboard' }, '');
+    }
+
     const handlePopState = (event: PopStateEvent) => {
-      // If we move back and the current table state is set, clear it to show dashboard
-      if (stateRef.current.currentTable) {
+      const historyState = event.state;
+      // If the state we just landed on is dashboard or null, clear the current table
+      if (!historyState || historyState.view === 'dashboard') {
         setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+      } else if (historyState.view === 'table' && historyState.tableNo) {
+        // Handle direct history navigation to a specific table if needed
+        setState(prev => ({ ...prev, currentTable: historyState.tableNo }));
       }
     };
 
@@ -60,15 +69,14 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Handle Capacitor hardware back button (Android)
+  // Handle Capacitor hardware back button (specifically for Android)
   useEffect(() => {
-    const backButtonHandler = CapApp.addListener('backButton', ({ canGoBack }) => {
+    const backButtonHandler = CapApp.addListener('backButton', () => {
+      // If we are in a table view, use the history stack to go back
       if (stateRef.current.currentTable) {
-        // We are in a table, go back to dashboard
         window.history.back();
       } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
-        // We are at dashboard, let the OS minimize the app or exit
-        // We can explicitly call exit if we want, but letting default happen is safer
+        // If at dashboard, let it minimize or show exit confirmation
         CapApp.exitApp();
       }
     });
@@ -343,17 +351,17 @@ const App: React.FC = () => {
   const handleSelectTable = (tableNo: string) => {
     const t = state.tables.find(tbl => tbl.table_no === tableNo);
     // Push state to browser history to enable gesture-based back navigation
-    window.history.pushState({ tableNo }, '');
+    window.history.pushState({ view: 'table', tableNo }, '');
     setState(prev => ({ ...prev, currentTable: tableNo, orderInfo: null }));
     fetchOrders(tableNo, t?.master_order_id);
   };
 
   const handleBackToDashboard = useCallback(() => {
-    // Check if we pushed a state, if so go back in history which will trigger popstate
-    if (window.history.state?.tableNo) {
+    // Strictly rely on window.history.back() to sync with operating system gestures
+    if (window.history.state?.view === 'table') {
       window.history.back();
     } else {
-      // Fallback: Manually clear state
+      // Fallback: Manually clear state if history state is somehow missing
       setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
     }
   }, []);
