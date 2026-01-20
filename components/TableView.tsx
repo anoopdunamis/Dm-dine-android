@@ -75,10 +75,20 @@ const TableView: React.FC<TableViewProps> = ({
 
   // Pull to refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    const touchX = e.touches[0].pageX;
+    const touchY = e.touches[0].pageY;
+    
+    // EDGE PROTECTION: If swipe starts near the left edge (0-40px), 
+    // it's likely an iOS system back gesture. Do not initiate pull-to-refresh.
+    if (touchX < 40) {
+      isPulling.current = false;
+      return;
+    }
+
     const scrollContainer = e.currentTarget.closest('main') || document.documentElement;
     if (scrollContainer.scrollTop <= 0) {
-      startX.current = e.touches[0].pageX;
-      startY.current = e.touches[0].pageY;
+      startX.current = touchX;
+      startY.current = touchY;
       isPulling.current = true;
     }
   };
@@ -91,8 +101,9 @@ const TableView: React.FC<TableViewProps> = ({
     const diffX = Math.abs(currentX - startX.current);
     const diffY = currentY - startY.current;
     
-    // CRITICAL: If swipe is primarily horizontal, DO NOT trigger pull-to-refresh
-    if (diffX > diffY) {
+    // GESTURE PRIORITY: If move is more horizontal than vertical, 
+    // cancel pull-to-refresh to allow native swipe-back gestures.
+    if (diffX > diffY || diffX > 10) {
       isPulling.current = false;
       return;
     }
