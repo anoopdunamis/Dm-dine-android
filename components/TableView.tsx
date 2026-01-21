@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference } from '../types';
+import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference, Category, MenuItem } from '../types';
 import VerificationModal from './VerificationModal';
 import EditItemModal from './EditItemModal';
+import MenuModal from './MenuModal';
+import AddItemSelectionModal from './AddItemSelectionModal';
 
 interface TableViewProps {
   table: Table;
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  categories: Category[];
+  menuItems: MenuItem[];
   onBack: () => void;
+  onAddItem: (foodId: string, quantity: number, preferences: string, code: string) => Promise<boolean>;
   onDelete: (id: string, code: string) => Promise<boolean> | boolean;
   onConfirm: (tableNo: string, code: string, note: string) => Promise<boolean> | boolean;
   onConfirmItem: (id: string, code: string, note: string) => Promise<boolean> | boolean;
@@ -21,7 +26,10 @@ const TableView: React.FC<TableViewProps> = ({
   table, 
   orders, 
   orderInfo, 
+  categories,
+  menuItems,
   onBack, 
+  onAddItem,
   onDelete, 
   onConfirm, 
   onConfirmItem, 
@@ -30,8 +38,9 @@ const TableView: React.FC<TableViewProps> = ({
   onConfirmAll,
   onRefresh
 }) => {
-  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | 'edit' | null>(null);
+  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | 'edit' | 'menu' | 'add_selection' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Pull to refresh states
@@ -78,8 +87,6 @@ const TableView: React.FC<TableViewProps> = ({
     const touchX = e.touches[0].pageX;
     const touchY = e.touches[0].pageY;
     
-    // EDGE PROTECTION: If swipe starts near the left edge (0-40px), 
-    // it's likely an iOS system back gesture. Do not initiate pull-to-refresh.
     if (touchX < 40) {
       isPulling.current = false;
       return;
@@ -101,8 +108,6 @@ const TableView: React.FC<TableViewProps> = ({
     const diffX = Math.abs(currentX - startX.current);
     const diffY = currentY - startY.current;
     
-    // GESTURE PRIORITY: If move is more horizontal than vertical, 
-    // cancel pull-to-refresh to allow native swipe-back gestures.
     if (diffX > diffY || diffX > 10) {
       isPulling.current = false;
       return;
@@ -173,7 +178,21 @@ const TableView: React.FC<TableViewProps> = ({
     }
   };
 
-  const isPaid = orderInfo?.payment_status?.toLowerCase().includes('paid') && !orderInfo?.payment_status?.toLowerCase().includes('not');
+  const handleAddItemSubmit = async (quantity: number, preferences: string, code: string) => {
+    if (!selectedMenuItem) return;
+    setIsProcessing(true);
+    try {
+      if (await onAddItem(selectedMenuItem.id, quantity, preferences, code)) {
+        setModalType(null);
+        setSelectedMenuItem(null);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const payStatus = (orderInfo?.payment_status || '').toLowerCase();
+  const isPaid = payStatus.includes('paid') && !payStatus.includes('not');
   const targetItem = orders.find(o => o.id === targetId);
 
   return (
@@ -220,15 +239,25 @@ const TableView: React.FC<TableViewProps> = ({
                  <span className="text-[10px] text-indigo-500 font-black uppercase">ID: {orderInfo?.master_order_id || 'NEW'}</span>
               </div>
             </div>
-            {/* Manual Refresh Button */}
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleManualRefresh(); }} 
-              className="p-3 -mr-2 text-slate-600 rounded-full transition-all active:scale-90 hover:bg-slate-50 z-50 relative"
-            >
-              <svg className={`w-6 h-6 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+            
+            <div className="flex items-center">
+                <button 
+                  onClick={() => setModalType('menu')}
+                  className="p-3 text-indigo-600 rounded-full transition-all active:scale-90 hover:bg-indigo-50 z-50 relative"
+                >
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleManualRefresh(); }} 
+                  className="p-3 -mr-2 text-slate-400 rounded-full transition-all active:scale-90 hover:bg-slate-50 z-50 relative"
+                >
+                  <svg className={`w-6 h-6 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+            </div>
           </div>
           <div className="flex divide-x divide-slate-100 bg-slate-50 border-t border-slate-100">
             <div className="flex-1 px-4 py-2.5">
@@ -258,12 +287,12 @@ const TableView: React.FC<TableViewProps> = ({
                   <div key={item.id} className="p-5 flex flex-col gap-4">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
-                        <span className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></span>
+                        <span className="font-bold text-slate-900 text-lg">{item.food_name || 'Item'} <span className="text-slate-400">×{item.food_quantity}</span></span>
                         {item.preferences && item.preferences.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {item.preferences.map((pref, idx) => (
                               <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                {pref.name}
+                                {pref.name || ''}
                               </span>
                             ))}
                           </div>
@@ -316,15 +345,15 @@ const TableView: React.FC<TableViewProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                            <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
-                           <span className="text-[9px] font-black text-slate-400 uppercase">{item.status}</span>
+                           <span className="text-[9px] font-black text-slate-400 uppercase">{item.status || ''}</span>
                         </div>
-                        <p className="font-bold text-slate-900 text-lg">{item.food_name} <span className="text-slate-400">×{item.food_quantity}</span></p>
+                        <p className="font-bold text-slate-900 text-lg">{item.food_name || 'Item'} <span className="text-slate-400">×{item.food_quantity}</span></p>
                         
                         {item.preferences && item.preferences.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {item.preferences.map((pref, idx) => (
                               <span key={idx} className="bg-slate-50 text-slate-400 border border-slate-100 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                {pref.name}
+                                {pref.name || ''}
                               </span>
                             ))}
                           </div>
@@ -376,6 +405,12 @@ const TableView: React.FC<TableViewProps> = ({
                 <p className="text-slate-400 text-sm font-medium max-w-[240px] text-center px-4 leading-relaxed">
                   This table is currently clear. Start adding delicious items to begin a new guest order!
                 </p>
+                <button 
+                  onClick={() => setModalType('menu')}
+                  className="mt-6 bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 transition-all"
+                >
+                  Browse Menu
+                </button>
               </div>
           )}
 
@@ -405,6 +440,28 @@ const TableView: React.FC<TableViewProps> = ({
         </div>
       </div>
 
+      {modalType === 'menu' && (
+        <MenuModal 
+          categories={categories}
+          items={menuItems}
+          onClose={() => setModalType(null)}
+          onSelectItem={(item) => {
+            setSelectedMenuItem(item);
+            setModalType('add_selection');
+          }}
+        />
+      )}
+
+      {modalType === 'add_selection' && selectedMenuItem && (
+        <AddItemSelectionModal 
+          item={selectedMenuItem}
+          onClose={() => setModalType('menu')}
+          onConfirm={handleAddItemSubmit}
+          onFetchPreferences={onFetchItemPreferences}
+          isLoading={isProcessing}
+        />
+      )}
+
       {modalType === 'edit' && targetItem && (
         <EditItemModal 
           item={targetItem}
@@ -415,7 +472,7 @@ const TableView: React.FC<TableViewProps> = ({
         />
       )}
 
-      {(modalType && modalType !== 'edit') && (
+      {(modalType && modalType !== 'edit' && modalType !== 'menu' && modalType !== 'add_selection') && (
         <VerificationModal 
           type={(modalType === 'confirm' || modalType === 'confirm_item' || modalType === 'confirm_all') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}

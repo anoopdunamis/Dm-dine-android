@@ -30,9 +30,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedTableForNewOrder, setSelectedTableForNewOrder] = useState<string | null>(null);
 
   const filteredTables = useMemo(() => {
+    const query = (searchQuery || '').toLowerCase();
     return tables.filter(table => {
       const matchesFilter = filter === 'all' || table.status === filter;
-      const matchesSearch = table.table_no.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = String(table.table_no || '').toLowerCase().includes(query);
       return matchesFilter && matchesSearch;
     });
   }, [tables, filter, searchQuery]);

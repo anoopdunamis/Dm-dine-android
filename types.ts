@@ -31,6 +31,25 @@ export interface OrderItem {
   food_image?: string;
 }
 
+export interface Category {
+  cat_id: string;
+  category_name: string;
+  parent_id: string;
+  sort_order: string;
+}
+
+export interface MenuItem {
+  id: string;
+  food_name: string;
+  Price: string;
+  Currency: string;
+  CategoryID: string;
+  food_type: 'Veg' | 'Non';
+  Image_Large: string;
+  Image_Thumb: string;
+  sort_order: string;
+}
+
 export interface OrderInfo {
   master_order_id: string;
   table_no: string;

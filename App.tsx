@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference } from './types';
+import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference, Category, MenuItem } from './types';
 import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
@@ -17,6 +17,8 @@ const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncError, setSyncError] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('dinesync_state_v2');
@@ -178,6 +180,7 @@ const App: React.FC = () => {
             if (!trimmed || trimmed === '' || (!trimmed.includes('{') && !trimmed.includes('['))) {
               if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
               if (url.includes('api_tables.php')) return { tables: [] };
+              if (url.includes('api_menu.php')) return { categories: [], items: [] };
               return {};
             }
             return JSON.parse(cleanedText); 
@@ -209,6 +212,7 @@ const App: React.FC = () => {
           if (!trimmed || trimmed === '' || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
              if (url.includes('api_orders.php')) return { order_items: [], orders_info: [] };
              if (url.includes('api_tables.php')) return { tables: [] };
+             if (url.includes('api_menu.php')) return { categories: [], items: [] };
              return {};
           }
           return JSON.parse(cleanedText); 
@@ -285,7 +289,7 @@ const App: React.FC = () => {
         return {
           id: String(o.id || ''),
           food_id: String(o.Item_Id || o.food_id || ''), 
-          food_name: o.food_name || 'Item',
+          food_name: o.food_name || o.Item_Name || o.item_name || 'Item',
           food_item_price: Number(o.food_item_price || 0),
           food_quantity: Number(o.food_quantity || 1),
           status: mappedStatus,
@@ -305,6 +309,30 @@ const App: React.FC = () => {
       if (!silent) setErrorStatus(`Order Sync: ${err.message}`);
     } finally {
       if (!silent) setIsLoading(false);
+    }
+  }, []);
+
+  const fetchMenu = useCallback(async () => {
+    if (!stateRef.current.rsId) return;
+    setIsLoading(true);
+    try {
+      const response = await makeRequest(`${API_BASE_URL}api_menu.php`, {
+        body: JSON.stringify({ rs_id: stateRef.current.rsId })
+      });
+      
+      // Safety map for items to ensure food_name is always present as a string
+      const rawItems = response?.items || [];
+      const mappedItems: MenuItem[] = rawItems.map((item: any) => ({
+        ...item,
+        food_name: String(item.food_name || item.Item_Name || item.item_name || item.name || `Item ${item.id || ''}`)
+      }));
+
+      setCategories(response?.categories || []);
+      setMenuItems(mappedItems);
+    } catch (err: any) {
+      setErrorStatus(`Menu Sync: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -328,7 +356,7 @@ const App: React.FC = () => {
       
       return prefsList.map((p: any) => ({
         id: String(p.p_id || p.id || p.food_preferencess_id || Math.random().toString(36).substr(2, 9)),
-        name: p.p_name || p.food_preferencess || p.name || p.preference_name || ''
+        name: String(p.p_name || p.food_preferencess || p.name || p.preference_name || '')
       })).filter((p: any) => p.name);
     } catch (err) {
       console.error("Error fetching preferences:", err);
@@ -350,6 +378,7 @@ const App: React.FC = () => {
     if (state.currentTable) {
       const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
       fetchOrders(state.currentTable, t?.master_order_id);
+      fetchMenu(); // Also fetch menu when at table view
     }
   }, [state.currentTable]);
 
@@ -418,6 +447,28 @@ const App: React.FC = () => {
       const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
       await fetchOrders(state.currentTable, t?.master_order_id);
     }
+  };
+
+  const handleAddItem = async (foodId: string, quantity: number, preferences: string, waiterCode: string) => {
+    if (!state.rsId || !state.currentTable) return false;
+    setIsLoading(true);
+    try {
+      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
+      await makeRequest(`${API_BASE_URL}api_add_item.php`, {
+        body: JSON.stringify({ 
+          rs_id: state.rsId, 
+          table_no: state.currentTable,
+          food_id: foodId, 
+          food_quantity: quantity, 
+          food_preferencess: preferences,
+          waiter_code: waiterCode,
+          master_order_id: mId
+        })
+      });
+      fetchOrders(state.currentTable, mId);
+      return true;
+    } catch (err: any) { setErrorStatus(`Add Item failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
   const handleDeleteItem = async (itemId: string, waiterCode: string) => {
@@ -549,7 +600,10 @@ const App: React.FC = () => {
             table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable, status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             orderInfo={state.orderInfo}
+            categories={categories}
+            menuItems={menuItems}
             onBack={handleBackToDashboard}
+            onAddItem={handleAddItem}
             onDelete={handleDeleteItem}
             onConfirm={handleConfirmOrder}
             onConfirmItem={handleConfirmItem}
