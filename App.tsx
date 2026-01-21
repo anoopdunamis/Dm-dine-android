@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference, Category, MenuItem } from './types';
 import Dashboard from './components/Dashboard';
@@ -289,7 +290,7 @@ const App: React.FC = () => {
         return {
           id: String(o.id || ''),
           food_id: String(o.Item_Id || o.food_id || ''), 
-          food_name: o.food_name || o.Item_Name || o.item_name || 'Item',
+          food_name: String(o.menu_item_name || o.food_name || o.Item_Name || o.item_name || 'Item'),
           food_item_price: Number(o.food_item_price || 0),
           food_quantity: Number(o.food_quantity || 1),
           status: mappedStatus,
@@ -299,7 +300,7 @@ const App: React.FC = () => {
           order_taken_by: o.order_taken_by || 'Staff',
           note: o.food_note || o.note || '',
           food_type: o.food_type,
-          food_image: o.food_image
+          food_image: o.food_image || o.Image_Thumb || o.image_thumb || o.food_thumb || ''
         };
       });
       setState(prev => ({ ...prev, orders: mappedOrders, orderInfo }));
@@ -324,7 +325,10 @@ const App: React.FC = () => {
       const rawItems = response?.items || [];
       const mappedItems: MenuItem[] = rawItems.map((item: any) => ({
         ...item,
-        food_name: String(item.food_name || item.Item_Name || item.item_name || item.name || `Item ${item.id || ''}`)
+        // Using String(item.menu_item_name || ...) to ensure we pick up the latest field
+        food_name: String(item.menu_item_name || item.food_name || item.Item_Name || item.item_name || item.name || `Item ${item.id || ''}`),
+        Image_Thumb: item.Image_Thumb || item.image_thumb || item.food_thumb || '',
+        Image_Large: item.Image_Large || item.image_large || item.food_image || ''
       }));
 
       setCategories(response?.categories || []);
@@ -433,10 +437,7 @@ const App: React.FC = () => {
   };
 
   const handleBackToDashboard = useCallback(() => {
-    // Setting hash directly is much more reliable in AI Studio Preview / iframes than history.back()
     window.location.hash = '/dashboard';
-    
-    // Explicit state update as a fallback for environments that might suppress hashchange events
     if (stateRef.current.currentTable !== null) {
       setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
     }
@@ -561,9 +562,7 @@ const App: React.FC = () => {
       });
       
       if (response.success === true || response.status === 'success') {
-        // Refresh tables to reflect occupancy
         await fetchTables();
-        // Automatically select the table
         handleSelectTable(tableNo);
         return true;
       }

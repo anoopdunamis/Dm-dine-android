@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { MenuItem, ItemPreference } from '../types';
 
@@ -8,6 +9,8 @@ interface AddItemSelectionModalProps {
   onFetchPreferences: (foodId: string) => Promise<ItemPreference[]>;
   isLoading: boolean;
 }
+
+const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/AlHalabi169/menu/';
 
 const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onClose, onConfirm, onFetchPreferences, isLoading }) => {
   const [quantity, setQuantity] = useState(1);
@@ -35,7 +38,6 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
   const togglePreference = (prefName: string) => {
     const name = String(prefName || '').trim();
     if (!name) return;
-    
     const lowerName = name.toLowerCase();
     setSelectedPrefs(prev => {
       const exists = prev.some(p => String(p || '').toLowerCase().trim() === lowerName);
@@ -60,14 +62,32 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
     onConfirm(quantity, preferencesString, code);
   };
 
+  const getImageUrl = () => {
+    const filename = (item.Image_Thumb || item.Image_Large || '').trim();
+    if (!filename) return null;
+    if (filename.startsWith('http')) return filename;
+    return IMAGE_BASE_URL + filename;
+  };
+
+  const url = getImageUrl();
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
       <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         <div className="p-8 flex flex-col h-full overflow-hidden">
-          <div className="mb-6">
-            <h3 className="text-2xl font-black text-slate-900">Add to Order</h3>
-            <p className="text-slate-500 text-sm font-bold uppercase tracking-tight">{item.food_name || 'Item'}</p>
+          <div className="mb-6 flex gap-4 items-start">
+            <div className="w-16 h-16 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shrink-0 shadow-inner">
+               {url ? (
+                 <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Item'; }} />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-300">NO IMG</div>
+               )}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-2xl font-black text-slate-900 leading-tight truncate">Add to Order</h3>
+              <p className="text-slate-500 text-sm font-bold uppercase tracking-tight truncate">{item.food_name || 'Item'}</p>
+            </div>
           </div>
 
           <div className="flex-grow overflow-y-auto space-y-8 pr-1 custom-scrollbar">

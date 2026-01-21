@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Category, MenuItem } from '../types';
 
@@ -27,6 +28,14 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
       return matchesCategory && matchesSearch;
     }).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   }, [items, selectedCatId, searchQuery]);
+
+  const getImageUrl = (item: MenuItem) => {
+    const filename = (item.Image_Thumb || item.Image_Large || '').trim();
+    if (!filename) return null;
+    // If it's already a full URL, return it directly
+    if (filename.startsWith('http')) return filename;
+    return IMAGE_BASE_URL + filename;
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-slate-50 animate-in slide-in-from-bottom duration-300">
@@ -82,33 +91,41 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
       <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
         {filteredItems.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {filteredItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => onSelectItem(item)}
-                className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-all text-left flex flex-col group"
-              >
-                <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
-                  <img 
-                    src={IMAGE_BASE_URL + (item.Image_Thumb || item.Image_Large)} 
-                    alt={item.food_name || 'Menu Item'}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Item';
-                    }}
-                  />
-                  <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${item.food_type === 'Veg' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                      {item.food_type}
-                    </span>
+            {filteredItems.map(item => {
+              const url = getImageUrl(item);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelectItem(item)}
+                  className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-all text-left flex flex-col group"
+                >
+                  <div className="aspect-[4/3] bg-slate-50 relative overflow-hidden">
+                    {url ? (
+                      <img 
+                        src={url} 
+                        alt={item.food_name || 'Menu Item'}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        onLoad={(e) => (e.target as HTMLImageElement).classList.add('opacity-100')}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=Item';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-200 uppercase font-black text-xs">No Photo</div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${item.food_type === 'Veg' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                        {item.food_type}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 flex-grow flex flex-col justify-between">
-                  <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{item.food_name}</h4>
-                  <p className="text-indigo-600 font-black text-sm">{item.Price} <span className="text-[10px] opacity-70">{item.Currency}</span></p>
-                </div>
-              </button>
-            ))}
+                  <div className="p-4 flex-grow flex flex-col justify-between">
+                    <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{item.food_name}</h4>
+                    <p className="text-indigo-600 font-black text-sm">{item.Price} <span className="text-[10px] opacity-70">{item.Currency}</span></p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 opacity-30">
