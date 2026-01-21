@@ -22,8 +22,6 @@ interface TableViewProps {
   onRefresh: () => Promise<void>;
 }
 
-const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
-
 const TableView: React.FC<TableViewProps> = ({ 
   table, 
   orders, 
@@ -51,13 +49,6 @@ const TableView: React.FC<TableViewProps> = ({
   const startX = useRef(0);
   const startY = useRef(0);
   const isPulling = useRef(false);
-
-  // Helper to get image URL
-  const resolveImageUrl = (path: string | undefined) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return IMAGE_BASE_URL + path;
-  };
 
   // International Currency Formatter
   const formatCurrency = (amount: number) => {
@@ -286,52 +277,37 @@ const TableView: React.FC<TableViewProps> = ({
                 <span className="text-[10px] font-black opacity-70">DRAFT</span>
               </div>
               <div className="divide-y divide-slate-50">
-                {cartItems.map(item => {
-                  const imageUrl = resolveImageUrl(item.food_image);
-                  return (
-                    <div key={item.id} className="p-5 flex flex-col gap-4">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex gap-4 min-w-0 flex-1">
-                          <div className="w-16 h-16 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 shrink-0">
-                            {imageUrl ? (
-                              <img 
-                                src={imageUrl} 
-                                alt={item.food_name} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Item'; }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-200 uppercase font-black text-[10px]">No Img</div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-bold text-slate-900 text-lg">{item.food_name || 'Item'} <span className="text-slate-400">×{item.food_quantity}</span></span>
-                            {item.preferences && item.preferences.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                {item.preferences.map((pref, idx) => (
-                                  <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                    {pref.name || ''}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
+                {cartItems.map(item => (
+                  <div key={item.id} className="p-5 flex flex-col gap-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex gap-4 min-w-0 flex-1">
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-900 text-lg">{item.food_name || 'Item'} <span className="text-slate-400">×{item.food_quantity}</span></span>
+                          {item.preferences && item.preferences.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {item.preferences.map((pref, idx) => (
+                                <span key={idx} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                  {pref.name || ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-2 border-t border-slate-50">
-                        <button 
-                          onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
-                          className="flex-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all"
-                        >
-                          Remove
-                        </button>
+                      <div className="text-right">
+                        <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="flex gap-2 pt-2 border-t border-slate-50">
+                      <button 
+                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                        className="flex-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                 <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
@@ -358,26 +334,12 @@ const TableView: React.FC<TableViewProps> = ({
                 </div>
               </div>
               <div className="divide-y divide-slate-50">
-                {activeItems.map(item => {
-                  const imageUrl = resolveImageUrl(item.food_image);
-                  return (
-                    <div key={item.id} className="p-5 flex flex-col gap-4">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex gap-4 min-w-0 flex-1">
-                          <div className="w-16 h-16 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 shrink-0">
-                            {imageUrl ? (
-                              <img 
-                                src={imageUrl} 
-                                alt={item.food_name} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Item'; }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-200 uppercase font-black text-[10px]">No Img</div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                {activeItems.map(item => (
+                  <div key={item.id} className="p-5 flex flex-col gap-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex gap-4 min-w-0 flex-1">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
                                <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
                                <span className="text-[9px] font-black text-slate-400 uppercase">{item.status || ''}</span>
                             </div>
@@ -392,39 +354,38 @@ const TableView: React.FC<TableViewProps> = ({
                               </div>
                             )}
                             {item.note && <p className="mt-2 p-2 bg-indigo-50 rounded-xl text-[10px] text-indigo-600 font-bold italic">{item.note}</p>}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
-                        {item.status === OrderStatus.OCCUPIED && (
-                          <button 
-                            onClick={() => { setTargetId(item.id); setModalType('edit'); }} 
-                            className="flex-1 bg-white border-2 border-indigo-50 text-indigo-600 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
-                          >
-                            Edit
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
-                          className="flex-1 bg-white border-2 border-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
-                        >
-                          Delete
-                        </button>
-                        {item.status === OrderStatus.OCCUPIED && (
-                          <button 
-                            onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} 
-                            className="flex-[2] bg-emerald-600 text-white text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-50"
-                          >
-                            Confirm
-                          </button>
-                        )}
+                      <div className="text-right">
+                        <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                      {item.status === OrderStatus.OCCUPIED && (
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('edit'); }} 
+                          className="flex-1 bg-white border-2 border-indigo-50 text-indigo-600 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                        className="flex-1 bg-white border-2 border-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                      >
+                        Delete
+                      </button>
+                      {item.status === OrderStatus.OCCUPIED && (
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} 
+                          className="flex-[2] bg-emerald-600 text-white text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-50"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           ) : !cartItems.length && (

@@ -10,6 +10,7 @@ interface AddItemSelectionModalProps {
 }
 
 const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
+const FALLBACK_IMAGE = 'https://via.placeholder.com/100?text=Item';
 
 const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onClose, onConfirm, onFetchPreferences, isLoading }) => {
   const [quantity, setQuantity] = useState(1);
@@ -18,6 +19,7 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
   const [selectedPrefs, setSelectedPrefs] = useState<string[]>([]);
   const [isFetchingPrefs, setIsFetchingPrefs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isImgLoaded, setIsImgLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -63,7 +65,7 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
 
   const getImageUrl = () => {
     const filename = (item.Image_Thumb || item.Image_Large || '').trim();
-    if (!filename) return null;
+    if (!filename) return FALLBACK_IMAGE;
     if (filename.startsWith('http')) return filename;
     return IMAGE_BASE_URL + filename;
   };
@@ -76,12 +78,17 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
       <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         <div className="p-8 flex flex-col h-full overflow-hidden">
           <div className="mb-6 flex gap-4 items-start">
-            <div className="w-16 h-16 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shrink-0 shadow-inner">
-               {url ? (
-                 <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Item'; }} />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-300">NO IMG</div>
-               )}
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100 shrink-0 shadow-inner">
+               <img 
+                 src={url} 
+                 alt="" 
+                 className={`w-full h-full object-cover transition-opacity duration-500 ${isImgLoaded ? 'opacity-100' : 'opacity-0'}`} 
+                 onLoad={() => setIsImgLoaded(true)}
+                 onError={(e) => { 
+                   const target = e.target as HTMLImageElement;
+                   if (target.src !== FALLBACK_IMAGE) target.src = FALLBACK_IMAGE; 
+                 }} 
+               />
             </div>
             <div className="min-w-0">
               <h3 className="text-2xl font-black text-slate-900 leading-tight truncate">Add to Order</h3>
