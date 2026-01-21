@@ -51,7 +51,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const syncStateWithHash = () => {
       const hash = window.location.hash;
-      console.log("Syncing with hash:", hash);
       
       if (hash === '#/dashboard' || !hash || hash === '#/' || hash === '') {
         // Back to Dashboard
@@ -72,7 +71,6 @@ const App: React.FC = () => {
     // On app initialization (after authentication check)
     if (state.isAuthenticated && state.view === 'main') {
       if (!window.location.hash || window.location.hash === '#/') {
-        // Use hash assignment to avoid Origin Errors in sandboxes
         window.location.hash = '/dashboard';
       }
       syncStateWithHash();
@@ -84,8 +82,8 @@ const App: React.FC = () => {
   // Handle Capacitor hardware back button (specifically for Android)
   useEffect(() => {
     const backButtonHandler = CapApp.addListener('backButton', () => {
-      // In Capacitor/Android, history.back() correctly interacts with the hash stack
       if (stateRef.current.currentTable) {
+        // On native Android, history.back() is the correct interaction for physical buttons
         window.history.back();
       } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
         CapApp.exitApp();
@@ -333,7 +331,7 @@ const App: React.FC = () => {
         name: p.p_name || p.food_preferencess || p.name || p.preference_name || ''
       })).filter((p: any) => p.name);
     } catch (err) {
-      console.error("Failed to fetch preferences:", err);
+      console.error("Error fetching preferences:", err);
       return [];
     }
   }, []);
@@ -402,13 +400,17 @@ const App: React.FC = () => {
   };
 
   const handleSelectTable = (tableNo: string) => {
-    // Pure hash-driven navigation
     window.location.hash = `/table/${tableNo}`;
   };
 
   const handleBackToDashboard = useCallback(() => {
-    // Rely on history API to trigger hashchange listener
-    window.history.back();
+    // Setting hash directly is much more reliable in AI Studio Preview / iframes than history.back()
+    window.location.hash = '/dashboard';
+    
+    // Explicit state update as a fallback for environments that might suppress hashchange events
+    if (stateRef.current.currentTable !== null) {
+      setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+    }
   }, []);
 
   const handleRefreshCurrentTable = async () => {
