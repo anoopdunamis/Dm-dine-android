@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Category, MenuItem } from '../types';
 
 interface MenuModalProps {
@@ -9,7 +9,32 @@ interface MenuModalProps {
 }
 
 const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x300?text=Item';
+
+// Moved outside to prevent re-creation and flickering on every MenuModal render
+const MenuItemImage = ({ item }: { item: MenuItem }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  const path = (item.Image_Thumb || item.Image_Large || '').trim();
+  if (!path) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-slate-300 uppercase font-black text-[10px] bg-slate-50">
+        No Photo
+      </div>
+    );
+  }
+
+  const imgSrc = path.startsWith('http') ? path : IMAGE_BASE_URL + path;
+
+  return (
+    <img 
+      src={imgSrc} 
+      alt={item.food_name || 'Menu Item'}
+      className={`w-full h-full object-cover group-hover:scale-110 transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      onLoad={() => setIsLoaded(true)}
+      loading="lazy"
+    />
+  );
+};
 
 const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSelectItem }) => {
   const [selectedCatId, setSelectedCatId] = useState<string>('all');
@@ -28,37 +53,6 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
       return matchesCategory && matchesSearch;
     }).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   }, [items, selectedCatId, searchQuery]);
-
-  const MenuItemImage = ({ item }: { item: MenuItem }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [imgSrc, setImgSrc] = useState<string | null>(null);
-
-    useEffect(() => {
-      const path = (item.Image_Thumb || item.Image_Large || '').trim();
-      if (!path) {
-        setImgSrc(FALLBACK_IMAGE);
-      } else {
-        setImgSrc(path.startsWith('http') ? path : IMAGE_BASE_URL + path);
-      }
-    }, [item]);
-
-    if (!imgSrc) return <div className="w-full h-full flex items-center justify-center text-slate-200 uppercase font-black text-xs">No Photo</div>;
-
-    return (
-      <img 
-        src={imgSrc} 
-        alt={item.food_name || 'Menu Item'}
-        className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        onLoad={() => setIsLoaded(true)}
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          if (target.src !== FALLBACK_IMAGE) {
-            target.src = FALLBACK_IMAGE;
-          }
-        }}
-      />
-    );
-  };
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-slate-50 animate-in slide-in-from-bottom duration-300">
