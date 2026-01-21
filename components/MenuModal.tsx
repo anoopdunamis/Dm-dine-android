@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Category, MenuItem } from '../types';
 
@@ -9,7 +8,7 @@ interface MenuModalProps {
   onSelectItem: (item: MenuItem) => void;
 }
 
-const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/AlHalabi169/menu/';
+const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
 
 const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSelectItem }) => {
   const [selectedCatId, setSelectedCatId] = useState<string>('all');

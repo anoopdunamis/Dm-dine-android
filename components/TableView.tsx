@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference, Category, MenuItem } from '../types';
 import VerificationModal from './VerificationModal';
@@ -23,7 +22,7 @@ interface TableViewProps {
   onRefresh: () => Promise<void>;
 }
 
-const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/AlHalabi169/menu/';
+const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
 
 const TableView: React.FC<TableViewProps> = ({ 
   table, 

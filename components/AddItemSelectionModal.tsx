@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { MenuItem, ItemPreference } from '../types';
 
@@ -10,7 +9,7 @@ interface AddItemSelectionModalProps {
   isLoading: boolean;
 }
 
-const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/AlHalabi169/menu/';
+const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
 
 const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onClose, onConfirm, onFetchPreferences, isLoading }) => {
   const [quantity, setQuantity] = useState(1);
