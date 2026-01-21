@@ -495,6 +495,36 @@ const App: React.FC = () => {
     } catch (err: any) { setErrorStatus(`Table Confirm failed: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
+  const handleCreateOrder = async (tableNo: string, waiterCode: string, waiterPass: string, guestNos: number) => {
+    if (!stateRef.current.rsId) return false;
+    setIsLoading(true);
+    try {
+      const response = await makeRequest(`${API_BASE_URL}api_order_create.php`, {
+        body: JSON.stringify({
+          code: waiterCode,
+          password: waiterPass,
+          table: tableNo,
+          guest_nos: guestNos,
+          rs_id: stateRef.current.rsId
+        })
+      });
+      
+      if (response.success === true || response.status === 'success') {
+        // Refresh tables to reflect occupancy
+        await fetchTables();
+        // Automatically select the table
+        handleSelectTable(tableNo);
+        return true;
+      }
+      throw new Error(response.message || 'Failed to create order.');
+    } catch (err: any) {
+      setErrorStatus(`Order Creation: ${err.message}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (state.view === 'splash') return <SplashScreen />;
   if (state.view === 'login') return <LoginPage onLogin={handleLogin} />;
 
@@ -533,6 +563,7 @@ const App: React.FC = () => {
             tables={state.tables} 
             orders={state.orders} 
             onSelectTable={handleSelectTable} 
+            onCreateOrder={handleCreateOrder}
             restaurantName={state.user.restaurantName} 
             onInstall={handleInstallClick} 
             isOnline={isOnline}

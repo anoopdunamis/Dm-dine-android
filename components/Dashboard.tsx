@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Table, OrderItem } from '../types';
+import CreateOrderModal from './CreateOrderModal';
 
 interface DashboardProps {
   tables: Table[];
   orders: OrderItem[];
   onSelectTable: (tableNo: string) => void;
+  onCreateOrder: (tableNo: string, code: string, pass: string, guestNos: number) => Promise<boolean>;
   onInstall?: () => void;
   restaurantName?: string | null;
   isOnline: boolean;
@@ -17,6 +19,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   tables, 
   orders, 
   onSelectTable, 
+  onCreateOrder,
   onInstall, 
   restaurantName,
   isOnline,
@@ -24,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTableForNewOrder, setSelectedTableForNewOrder] = useState<string | null>(null);
 
   const filteredTables = useMemo(() => {
     return tables.filter(table => {
@@ -44,6 +48,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   const strokeDashoffset = circumference - (occupancyRate / 100) * circumference;
 
   const showOffline = !isOnline || syncError;
+
+  const handleTableClick = (table: Table) => {
+    if (table.status === 'occupied') {
+      onSelectTable(table.table_no);
+    } else {
+      setSelectedTableForNewOrder(table.table_no);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
@@ -223,13 +235,12 @@ const Dashboard: React.FC<DashboardProps> = ({
           filteredTables.map((table) => (
             <button
               key={table.table_no}
-              onClick={() => table.status === 'occupied' && onSelectTable(table.table_no)}
-              disabled={table.status !== 'occupied'}
+              onClick={() => handleTableClick(table)}
               className={`
                 relative aspect-[4/5] flex flex-col items-center justify-center rounded-[2rem] shadow-sm transition-all duration-500 group overflow-hidden
                 ${table.status === 'occupied' 
                   ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-100 active:scale-95 cursor-pointer border-b-4 border-orange-600/30' 
-                  : 'bg-white text-slate-300 border border-slate-100 opacity-60 cursor-not-allowed'}
+                  : 'bg-white text-slate-300 border-2 border-slate-100 hover:border-indigo-200 active:scale-95 cursor-pointer'}
               `}
             >
               {/* Internal Glow for Occupied */}
@@ -241,26 +252,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                 Table
               </span>
               
-              <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-md' : 'text-slate-200'}`}>
+              <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>
                 {table.table_no}
               </span>
               
-              {table.status === 'occupied' && (
+              {table.status === 'occupied' ? (
                   <div className="absolute bottom-4 flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
                     <span className="text-[11px] font-black">{table.guest_count || 0}</span>
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                     </svg>
                   </div>
+              ) : (
+                <div className="absolute bottom-4 flex flex-col items-center gap-1">
+                   <div className="p-1.5 bg-indigo-50 rounded-full group-hover:bg-indigo-600 transition-colors">
+                      <svg className="w-4 h-4 text-indigo-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                   </div>
+                </div>
               )}
 
               <div className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${table.status === 'occupied' ? 'bg-white shadow-[0_0_12px_rgba(255,255,255,1)]' : 'bg-slate-100'}`}></div>
-
-              {table.status === 'inactive' && (
-                <div className="absolute bottom-4">
-                   <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-300 bg-slate-50 px-3 py-1 rounded-lg">Ready</span>
-                </div>
-              )}
             </button>
           ))
         ) : (
@@ -274,6 +285,17 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
       </div>
+
+      {selectedTableForNewOrder && (
+        <CreateOrderModal 
+          tableNo={selectedTableForNewOrder}
+          onClose={() => setSelectedTableForNewOrder(null)}
+          onConfirm={async (code, pass, guests) => {
+            const success = await onCreateOrder(selectedTableForNewOrder, code, pass, guests);
+            if (success) setSelectedTableForNewOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 };
