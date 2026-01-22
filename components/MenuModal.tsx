@@ -91,8 +91,12 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
       {/* Header */}
       <div className="bg-white border-b border-slate-100 p-4 safe-top shadow-sm z-20">
         <div className="flex items-center justify-between mb-4">
-          <button onClick={onClose} className="p-2 -ml-2 text-slate-400">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button 
+            onClick={onClose} 
+            className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-full shadow-lg active:scale-90 transition-all focus:outline-none"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -174,16 +178,18 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
                         <p className="text-emerald-600 font-black text-sm uppercase tracking-widest">FREE</p>
                       ) : (
                         <>
-                          <p className="text-indigo-600 font-black text-sm">
-                            <span className="text-[10px] mr-0.5 opacity-70">{item.Currency}</span>
-                            {hasOfferPrice ? item.offer_price : item.Price}
-                          </p>
-                          {hasOfferPrice && (
-                            <p className="text-slate-400 line-through text-[10px] font-bold">
-                              <span className="mr-0.5">{item.Currency}</span>
-                              {item.Price}
+                          <div className="flex flex-col">
+                            <p className="text-indigo-600 font-black text-sm">
+                              <span className="text-[10px] mr-0.5 opacity-70">{item.Currency}</span>
+                              {hasOfferPrice ? item.offer_price : item.Price}
                             </p>
-                          )}
+                            {hasOfferPrice && (
+                              <p className="text-slate-400 line-through text-[10px] font-bold">
+                                <span className="mr-0.5">{item.Currency}</span>
+                                {item.Price}
+                              </p>
+                            )}
+                          </div>
                         </>
                       )}
                     </div>
