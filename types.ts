@@ -27,7 +27,7 @@ export interface OrderItem {
   master_order_id: string;
   order_taken_by?: string;
   note?: string;
-  food_type?: string;
+  food_id_type?: string;
   food_image?: string;
 }
 
@@ -48,6 +48,13 @@ export interface MenuItem {
   Image_Large: string;
   Image_Thumb: string;
   sort_order: string;
+  // Promotion fields
+  Promotion?: string;
+  offer_start_date?: string;
+  offer_end_date?: string;
+  offer_available_weekdays?: string;
+  offer_price?: string;
+  offer_title?: string;
 }
 
 export interface OrderInfo {

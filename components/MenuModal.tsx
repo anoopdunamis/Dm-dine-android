@@ -22,7 +22,27 @@ const DietarySymbol = ({ type, className = "" }: { type: 'Veg' | 'Non', classNam
   );
 };
 
-// Moved outside to prevent re-creation and flickering on every MenuModal render
+// Check if a promotion is active based on dates and weekdays
+const isPromoActive = (item: MenuItem): boolean => {
+  if (!item.Promotion || item.Promotion.toLowerCase() !== 'yes') return false;
+  
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  
+  // Date validation
+  if (item.offer_start_date && todayStr < item.offer_start_date) return false;
+  if (item.offer_end_date && todayStr > item.offer_end_date) return false;
+  
+  // Weekday validation
+  if (item.offer_available_weekdays) {
+    const days = item.offer_available_weekdays.split(',').map(d => d.trim().toLowerCase());
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    if (!days.includes(currentDay)) return false;
+  }
+  
+  return true;
+};
+
 const MenuItemImage = ({ item }: { item: MenuItem }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -120,24 +140,57 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
       <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
         {filteredItems.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {filteredItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => onSelectItem(item)}
-                className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-all text-left flex flex-col group"
-              >
-                <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
-                  <MenuItemImage item={item} />
-                  <div className="absolute top-2 right-2 p-1 bg-white/60 backdrop-blur-sm rounded-md shadow-sm">
-                    <DietarySymbol type={item.food_type} />
+            {filteredItems.map(item => {
+              const activePromo = isPromoActive(item);
+              const hasOfferPrice = activePromo && item.offer_price !== undefined && item.offer_price !== item.Price;
+              const isFree = activePromo && parseFloat(item.offer_price || '0') === 0;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelectItem(item)}
+                  className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-all text-left flex flex-col group relative"
+                >
+                  <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+                    <MenuItemImage item={item} />
+                    
+                    {/* Offer Title Banner */}
+                    {activePromo && item.offer_title && (
+                      <div className="absolute top-0 left-0 bg-orange-500 text-white text-[8px] font-black px-2 py-1 uppercase tracking-tighter rounded-br-xl shadow-lg z-10">
+                        {item.offer_title}
+                      </div>
+                    )}
+
+                    <div className="absolute top-2 right-2 p-1 bg-white/60 backdrop-blur-sm rounded-md shadow-sm z-10">
+                      <DietarySymbol type={item.food_type} />
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 flex-grow flex flex-col justify-between">
-                  <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{item.food_name}</h4>
-                  <p className="text-indigo-600 font-black text-sm">{item.Price} <span className="text-[10px] opacity-70">{item.Currency}</span></p>
-                </div>
-              </button>
-            ))}
+                  
+                  <div className="p-4 flex-grow flex flex-col justify-between">
+                    <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{item.food_name}</h4>
+                    
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                      {isFree ? (
+                        <p className="text-emerald-600 font-black text-sm uppercase tracking-widest">FREE</p>
+                      ) : (
+                        <>
+                          <p className="text-indigo-600 font-black text-sm">
+                            <span className="text-[10px] mr-0.5 opacity-70">{item.Currency}</span>
+                            {hasOfferPrice ? item.offer_price : item.Price}
+                          </p>
+                          {hasOfferPrice && (
+                            <p className="text-slate-400 line-through text-[10px] font-bold">
+                              <span className="mr-0.5">{item.Currency}</span>
+                              {item.Price}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 opacity-30">
