@@ -10,6 +10,18 @@ interface MenuModalProps {
 
 const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
 
+const DietarySymbol = ({ type, className = "" }: { type: 'Veg' | 'Non', className?: string }) => {
+  const isVeg = type === 'Veg';
+  return (
+    <div 
+      className={`w-4 h-4 border-2 flex items-center justify-center shrink-0 ${isVeg ? 'border-emerald-600' : 'border-rose-800'} ${className}`} 
+      title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+    >
+      <div className={`w-2 h-2 rounded-full ${isVeg ? 'bg-emerald-600' : 'bg-rose-800'}`} />
+    </div>
+  );
+};
+
 // Moved outside to prevent re-creation and flickering on every MenuModal render
 const MenuItemImage = ({ item }: { item: MenuItem }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -116,10 +128,8 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
               >
                 <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
                   <MenuItemImage item={item} />
-                  <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${item.food_type === 'Veg' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                      {item.food_type}
-                    </span>
+                  <div className="absolute top-2 right-2 p-1 bg-white/60 backdrop-blur-sm rounded-md shadow-sm">
+                    <DietarySymbol type={item.food_type} />
                   </div>
                 </div>
                 <div className="p-4 flex-grow flex flex-col justify-between">

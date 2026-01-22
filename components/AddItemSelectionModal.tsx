@@ -11,9 +11,20 @@ interface AddItemSelectionModalProps {
 
 const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
 
+const DietarySymbol = ({ type, className = "" }: { type: 'Veg' | 'Non', className?: string }) => {
+  const isVeg = type === 'Veg';
+  return (
+    <div 
+      className={`w-4 h-4 border-2 flex items-center justify-center shrink-0 ${isVeg ? 'border-emerald-600' : 'border-rose-800'} ${className}`} 
+      title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+    >
+      <div className={`w-2 h-2 rounded-full ${isVeg ? 'bg-emerald-600' : 'bg-rose-800'}`} />
+    </div>
+  );
+};
+
 const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onClose, onConfirm, onFetchPreferences, isLoading }) => {
   const [quantity, setQuantity] = useState(1);
-  const [code, setCode] = useState('');
   const [availablePrefs, setAvailablePrefs] = useState<ItemPreference[]>([]);
   const [selectedPrefs, setSelectedPrefs] = useState<string[]>([]);
   const [isFetchingPrefs, setIsFetchingPrefs] = useState(false);
@@ -57,9 +68,9 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
   }, [availablePrefs, searchQuery]);
 
   const handleConfirm = () => {
-    if (!code) return;
     const preferencesString = selectedPrefs.filter(Boolean).join('@');
-    onConfirm(quantity, preferencesString, code);
+    // Passing empty string for code as verification is removed from this modal
+    onConfirm(quantity, preferencesString, '');
   };
 
   const imgSrc = useMemo(() => {
@@ -87,7 +98,10 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
                )}
             </div>
             <div className="min-w-0">
-              <h3 className="text-2xl font-black text-slate-900 leading-tight truncate">Add to Order</h3>
+              <div className="flex items-center gap-2 mb-1">
+                <DietarySymbol type={item.food_type} />
+                <h3 className="text-2xl font-black text-slate-900 leading-tight truncate">Add to Order</h3>
+              </div>
               <p className="text-slate-500 text-sm font-bold uppercase tracking-tight truncate">{item.food_name || 'Item'}</p>
             </div>
           </div>
@@ -149,26 +163,14 @@ const AddItemSelectionModal: React.FC<AddItemSelectionModalProps> = ({ item, onC
                 )}
               </div>
             </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Verification Code</label>
-              <input 
-                type="password"
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="••••"
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-xl font-black tracking-widest focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-200"
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-8 pt-4 border-t border-slate-50 shrink-0">
             <button onClick={onClose} className="py-4 rounded-2xl font-bold text-slate-500 active:scale-95">Back</button>
             <button
               onClick={handleConfirm}
-              disabled={isLoading || !code}
-              className={`py-4 rounded-2xl font-black text-white shadow-xl bg-indigo-600 active:scale-95 transition-all flex items-center justify-center gap-2 ${(!code || isLoading) ? 'opacity-50' : ''}`}
+              disabled={isLoading}
+              className={`py-4 rounded-2xl font-black text-white shadow-xl bg-indigo-600 active:scale-95 transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-50' : ''}`}
             >
               {isLoading ? 'Adding...' : 'Add Item'}
             </button>
