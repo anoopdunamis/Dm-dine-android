@@ -4,8 +4,7 @@ import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 // Configuration for API
 const API_ENABLED = true; 
@@ -86,17 +85,25 @@ const App: React.FC = () => {
     // Only register listener on native platforms (Android/iOS)
     if (!Capacitor.isNativePlatform()) return;
 
-    const backButtonHandler = CapApp.addListener('backButton', () => {
-      if (stateRef.current.currentTable) {
-        // On native platforms, history.back() is the correct interaction for physical/gesture buttons
-        window.history.back();
-      } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
-        CapApp.exitApp();
-      }
-    });
+    let listener: any = null;
+
+    const setupListener = async () => {
+      // Dynamic import for Capacitor App plugin to avoid web overhead
+      const { App: CapApp } = await import('@capacitor/app');
+      listener = await CapApp.addListener('backButton', () => {
+        if (stateRef.current.currentTable) {
+          // On native platforms, history.back() is the correct interaction for physical/gesture buttons
+          window.history.back();
+        } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
+          CapApp.exitApp();
+        }
+      });
+    };
+
+    setupListener();
 
     return () => {
-      backButtonHandler.then(h => h.remove());
+      if (listener) listener.remove();
     };
   }, []);
 
@@ -165,6 +172,8 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
+        // Dynamic import for CapacitorHttp to ensure it's only used on native
+        const { CapacitorHttp } = await import('@capacitor/core');
         const response = await CapacitorHttp.request({
           url,
           method,
