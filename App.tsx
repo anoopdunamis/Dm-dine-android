@@ -1,12 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference, Category, MenuItem } from './types';
 import Dashboard from './components/Dashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 // Configuration for API
 const API_ENABLED = true; 
@@ -82,19 +80,30 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, [state.isAuthenticated, state.view]);
 
-  // Handle Capacitor hardware back button (specifically for Android)
+  // Handle Capacitor hardware back button (specifically for Android and iOS)
   useEffect(() => {
-    const backButtonHandler = CapApp.addListener('backButton', () => {
-      if (stateRef.current.currentTable) {
-        // On native Android, history.back() is the correct interaction for physical buttons
-        window.history.back();
-      } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
-        CapApp.exitApp();
-      }
-    });
+    // Only register listener on native platforms (Android/iOS)
+    if (!Capacitor.isNativePlatform()) return;
+
+    let listener: any = null;
+
+    const setupListener = async () => {
+      // Dynamic import for Capacitor App plugin to avoid web overhead
+      const { App: CapApp } = await import('@capacitor/app');
+      listener = await CapApp.addListener('backButton', () => {
+        if (stateRef.current.currentTable) {
+          // On native platforms, history.back() is the correct interaction for physical/gesture buttons
+          window.history.back();
+        } else if (stateRef.current.isAuthenticated && stateRef.current.view === 'main') {
+          CapApp.exitApp();
+        }
+      });
+    };
+
+    setupListener();
 
     return () => {
-      backButtonHandler.then(h => h.remove());
+      if (listener) listener.remove();
     };
   }, []);
 
@@ -155,8 +164,7 @@ const App: React.FC = () => {
 
   const makeRequest = async (url: string, options: any = {}) => {
     const method = 'POST';
-    const platform = Capacitor.getPlatform();
-    const isNative = platform === 'ios' || platform === 'android';
+    const isNative = Capacitor.isNativePlatform();
     let bodyObj: any = {};
     if (options.body) {
       try { bodyObj = JSON.parse(options.body); } catch (e) { console.error("Payload parse error", e); }
@@ -164,6 +172,8 @@ const App: React.FC = () => {
     
     try {
       if (isNative) {
+        // Dynamic import for CapacitorHttp to ensure it's only used on native
+        const { CapacitorHttp } = await import('@capacitor/core');
         const response = await CapacitorHttp.request({
           url,
           method,
@@ -290,7 +300,7 @@ const App: React.FC = () => {
         return {
           id: String(o.id || ''),
           food_id: String(o.Item_Id || o.food_id || ''), 
-          food_name: String(o.menu_item_name || o.food_name || o.Item_Name || o.item_name || 'Item'),
+          food_name: String(o.menu_item_name || o.food_name || o.Item_Name || o.item_name || o.item_name || 'Item'),
           food_item_price: Number(o.food_item_price || 0),
           food_quantity: Number(o.food_quantity || 1),
           status: mappedStatus,
