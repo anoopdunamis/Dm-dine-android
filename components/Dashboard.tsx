@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Table, OrderItem, WaiterCall } from '../types';
 import CreateOrderModal from './CreateOrderModal';
@@ -32,6 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTableForNewOrder, setSelectedTableForNewOrder] = useState<string | null>(null);
+  const [confirmCallId, setConfirmCallId] = useState<string | null>(null);
 
   const filteredTables = useMemo(() => {
     const query = (searchQuery || '').toLowerCase();
@@ -72,6 +74,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     } catch (e) { return 'Just now'; }
   };
 
+  const pendingConfirmCall = useMemo(() => 
+    waiterCalls.find(c => c.order_waiter_call_id === confirmCallId),
+    [waiterCalls, confirmCallId]
+  );
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
       <header className="mb-10 relative">
@@ -107,9 +114,10 @@ const Dashboard: React.FC<DashboardProps> = ({
              </div>
              <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
                 {waiterCalls.map(call => (
-                  <div 
+                  <button 
                     key={call.order_waiter_call_id}
-                    className="flex-shrink-0 bg-white border border-slate-100 p-4 rounded-3xl shadow-sm min-w-[200px] flex items-center justify-between group active:scale-95 transition-all"
+                    onClick={() => setConfirmCallId(call.order_waiter_call_id)}
+                    className="flex-shrink-0 bg-white border border-slate-100 p-4 rounded-3xl shadow-sm min-w-[220px] flex items-center justify-between group active:scale-95 transition-all text-left"
                   >
                     <div className="flex items-center gap-3">
                        <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center font-black text-sm">
@@ -120,13 +128,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <p className="text-xs font-bold text-slate-900 line-clamp-1">{call.call_info || 'Assistance'}</p>
                        </div>
                     </div>
-                    <button 
-                      onClick={() => onAcknowledgeCall(call.order_waiter_call_id)}
-                      className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                    </button>
-                  </div>
+                    <div className="p-2 text-slate-300 group-hover:text-indigo-500 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                  </button>
                 ))}
              </div>
           </div>
@@ -264,6 +269,43 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Service Request Confirmation Modal */}
+      {confirmCallId && pendingConfirmCall && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setConfirmCallId(null)}></div>
+          <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Request Handled?</h3>
+              <p className="text-slate-500 text-sm font-medium mb-1">Marking service for Table <span className="text-indigo-600 font-black">{pendingConfirmCall.table_no}</span> as completed.</p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{pendingConfirmCall.call_info || 'General Assistance'}</p>
+
+              <div className="grid grid-cols-2 gap-3 mt-10">
+                <button
+                  onClick={() => setConfirmCallId(null)}
+                  className="py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onAcknowledgeCall(confirmCallId);
+                    setConfirmCallId(null);
+                  }}
+                  className="py-4 rounded-2xl font-black text-white shadow-xl shadow-indigo-100 bg-indigo-600 active:scale-95 transition-all"
+                >
+                  Yes, Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedTableForNewOrder && (
         <CreateOrderModal 

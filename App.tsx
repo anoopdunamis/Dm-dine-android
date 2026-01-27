@@ -250,13 +250,12 @@ const App: React.FC = () => {
       // Logic to handle new waiter calls
       if (isFirstFetch.current) {
         // Suppress notifications on the very first API call of the session
-        // Mark all current calls as "seen" immediately
         const initialSeen = new Set(seenCallIds);
         waiterCalls.forEach(call => initialSeen.add(call.order_waiter_call_id));
         setSeenCallIds(initialSeen);
         isFirstFetch.current = false;
       } else {
-        // Trigger notifications for truly new IDs on subsequent manual/auto refreshes
+        // Trigger notifications for truly new IDs
         waiterCalls.forEach(call => {
           if (!seenCallIds.has(call.order_waiter_call_id)) {
             triggerNotification(call);
@@ -515,8 +514,27 @@ const App: React.FC = () => {
     } catch (err: any) { setErrorStatus(`Order Creation: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
-  const handleAcknowledgeCall = (callId: string) => {
-    setActiveNotifications(prev => prev.filter(c => c.order_waiter_call_id !== callId));
+  const handleAcknowledgeCall = async (callId: string) => {
+    if (!stateRef.current.rsId) return;
+    setIsLoading(true);
+    try {
+      await makeRequest(`${API_BASE_URL}api_update_waiter_call.php`, {
+        body: JSON.stringify({
+          rs_id: stateRef.current.rsId,
+          order_waiter_call_id: callId
+        })
+      });
+      // Optimistic local state update
+      setState(prev => ({
+        ...prev,
+        waiterCalls: prev.waiterCalls.filter(c => c.order_waiter_call_id !== callId)
+      }));
+      setActiveNotifications(prev => prev.filter(c => c.order_waiter_call_id !== callId));
+    } catch (err: any) {
+      setErrorStatus(`Failed to update waiter call: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (state.view === 'splash') return <SplashScreen />;
@@ -537,8 +555,15 @@ const App: React.FC = () => {
               <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">Table {call.table_no}</h4>
               <p className="text-sm font-bold truncate">{call.call_info || 'Service Request'}</p>
             </div>
-            <button onClick={() => handleAcknowledgeCall(call.order_waiter_call_id)} className="p-2 text-slate-400 hover:text-white">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+            <button 
+              onClick={() => {
+                // If the user acknowledges from the toast, we use the dashboard's same confirmation logic
+                // For simplicity here, we'll just trigger handleAcknowledgeCall directly as the toast is high-intent
+                handleAcknowledgeCall(call.order_waiter_call_id);
+              }} 
+              className="p-2 text-slate-400 hover:text-white pointer-events-auto"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
             </button>
           </div>
         ))}
