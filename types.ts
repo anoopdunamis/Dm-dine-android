@@ -70,6 +70,13 @@ export interface OrderInfo {
   tax: string;
 }
 
+export interface WaiterCall {
+  order_waiter_call_id: string;
+  table_no: string;
+  timestamp: string;
+  call_info: string;
+}
+
 export interface Table {
   table_no: string;
   status: 'inactive' | 'occupied' | 'dirty';
@@ -96,4 +103,5 @@ export interface AppState {
   tables: Table[];
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  waiterCalls: WaiterCall[];
 }
