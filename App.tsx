@@ -118,11 +118,57 @@ const App: React.FC = () => {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  // Professional synthesized notification sound (Service Bell)
+  const playServiceBell = useCallback(() => {
+    try {
+      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      
+      const audioCtx = new AudioContextClass();
+      
+      const playTone = (freq: number, startTime: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      const now = audioCtx.currentTime;
+      // High-end dual chime "ding-ding"
+      playTone(880, now, 0.6); // A5
+      playTone(1046.50, now + 0.12, 0.7); // C6
+    } catch (e) {
+      console.warn("Audio feedback failed:", e);
+    }
+  }, []);
+
+  // Tactile haptic feedback
+  const triggerHapticFeedback = useCallback(() => {
+    if ('vibrate' in navigator) {
+      // Double pulse vibration
+      navigator.vibrate([100, 50, 100]);
+    }
+  }, []);
+
   const triggerNotification = useCallback(async (call: WaiterCall) => {
     const title = `Table ${call.table_no}: Service Request`;
     const body = call.call_info || 'Waiter assistance required';
 
-    // 1. Native Notification
+    // 1. Audio & Haptic Feedback
+    playServiceBell();
+    triggerHapticFeedback();
+
+    // 2. Native Notification
     if (Capacitor.isNativePlatform()) {
       try {
         const { LocalNotifications } = await import('@capacitor/local-notifications');
@@ -146,7 +192,7 @@ const App: React.FC = () => {
       }
     }
 
-    // 2. Browser/In-app Toast
+    // 3. Browser/In-app Toast
     setActiveNotifications(prev => {
       if (prev.some(p => p.order_waiter_call_id === call.order_waiter_call_id)) return prev;
       return [call, ...prev].slice(0, 3); 
@@ -156,7 +202,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       setActiveNotifications(prev => prev.filter(p => p.order_waiter_call_id !== call.order_waiter_call_id));
     }, 8000);
-  }, []);
+  }, [playServiceBell, triggerHapticFeedback]);
 
   const cleanJsonResponse = (text: string): string => {
     if (typeof text !== 'string') return JSON.stringify(text);
