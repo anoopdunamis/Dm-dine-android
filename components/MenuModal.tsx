@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Category, MenuItem } from '../types';
 
@@ -87,18 +88,18 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
   }, [items, selectedCatId, searchQuery]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center bg-slate-900/20 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex justify-center bg-slate-900/40 backdrop-blur-sm" onClick={onClose}>
       {/* Centered Modal Container constrained to max-w-3xl (same as TableView) */}
       <div 
-        className="w-full max-w-3xl bg-slate-50 flex flex-col h-full shadow-2xl animate-in slide-in-from-bottom duration-300 relative"
+        className="w-full max-w-3xl bg-slate-50 flex flex-col h-full shadow-2xl animate-in slide-in-from-bottom duration-300 relative overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-white border-b border-slate-100 p-4 safe-top shadow-sm z-20">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white border-b border-slate-100 safe-top shadow-sm z-30">
+          <div className="px-4 pt-4 pb-4 flex items-center justify-between">
             <button 
               onClick={onClose} 
-              className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-full shadow-lg active:scale-90 transition-all focus:outline-none"
+              className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-full shadow-lg active:scale-90 transition-all focus:outline-none z-50"
               aria-label="Close"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,46 +110,48 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
             <div className="w-10"></div>
           </div>
 
-          {/* Search */}
-          <div className="relative mb-4">
-            <input 
-              type="text"
-              placeholder="Search menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-12 py-3.5 font-bold focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
-            />
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+          <div className="px-4 pb-4">
+            {/* Search */}
+            <div className="relative mb-4">
+              <input 
+                type="text"
+                placeholder="Search menu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-12 py-3.5 font-bold focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
+              />
+              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
 
-          {/* Categories Pills */}
-          <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar">
-            <button
-              onClick={() => setSelectedCatId('all')}
-              className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2
-                ${selectedCatId === 'all' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-100 text-slate-400'}`}
-            >
-              All Items
-            </button>
-            {sortedCategories.map(cat => (
+            {/* Categories Pills */}
+            <div className="flex overflow-x-auto gap-2 pb-1 no-scrollbar">
               <button
-                key={cat.cat_id}
-                onClick={() => setSelectedCatId(cat.cat_id)}
+                onClick={() => setSelectedCatId('all')}
                 className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2
-                  ${selectedCatId === cat.cat_id ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-100 text-slate-400'}`}
+                  ${selectedCatId === 'all' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-100 text-slate-400'}`}
               >
-                {cat.category_name}
+                All Items
               </button>
-            ))}
+              {sortedCategories.map(cat => (
+                <button
+                  key={cat.cat_id}
+                  onClick={() => setSelectedCatId(cat.cat_id)}
+                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2
+                    ${selectedCatId === cat.cat_id ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-100 text-slate-400'}`}
+                >
+                  {cat.category_name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Grid */}
-        <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
+        <div className="flex-grow overflow-y-auto p-4 custom-scrollbar bg-slate-50">
           {filteredItems.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-10">
               {filteredItems.map(item => {
                 const activePromo = isPromoActive(item);
                 const hasOfferPrice = activePromo && item.offer_price !== undefined && item.offer_price !== item.Price;
