@@ -340,7 +340,7 @@ const TableView: React.FC<TableViewProps> = ({
                       <div className="flex gap-4 min-w-0 flex-1">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                               <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.PREPARED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+                               <div className={`w-2 h-2 rounded-full ${item.status === OrderStatus.CONFIRMED ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
                                <span className="text-[9px] font-black text-slate-400 uppercase">{item.status || ''}</span>
                             </div>
                             <p className="font-bold text-slate-900 text-lg">{item.food_name || 'Item'} <span className="text-slate-400">×{item.food_quantity}</span></p>
