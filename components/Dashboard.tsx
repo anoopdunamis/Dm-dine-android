@@ -16,8 +16,6 @@ interface DashboardProps {
   onAcknowledgeCall: (id: string) => void;
 }
 
-type FilterStatus = 'all' | 'occupied' | 'inactive';
-
 const Dashboard: React.FC<DashboardProps> = ({ 
   tables, 
   orders, 
@@ -30,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   syncError,
   onAcknowledgeCall
 }) => {
-  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [filter, setFilter] = useState<'all' | 'occupied' | 'inactive'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTableForNewOrder, setSelectedTableForNewOrder] = useState<string | null>(null);
   const [confirmCallId, setConfirmCallId] = useState<string | null>(null);
@@ -153,8 +151,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </svg>
                       <span className="absolute text-sm font-black tracking-tighter">{occupancyRate}%</span>
                    </div>
-                   <div className="hidden sm:block">
-                      <span className="text-4xl font-black tracking-tighter block">{occupiedCount}</span>
+                   <div className="flex flex-col">
+                      <span className="text-3xl sm:text-4xl font-black tracking-tighter block">{occupiedCount}</span>
                       <p className="text-[10px] font-black uppercase tracking-tight opacity-40">Active Tables</p>
                    </div>
                 </div>
