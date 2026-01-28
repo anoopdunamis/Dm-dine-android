@@ -21,9 +21,12 @@ const App: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [activeNotifications, setActiveNotifications] = useState<WaiterCall[]>([]);
   
+  // Track if we have performed the first data sync
+  const isFirstFetch = useRef(true);
+
   // Track seen notification IDs to avoid duplicates
   const [seenCallIds, setSeenCallIds] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('dinesync_seen_calls');
+    const saved = localStorage.getItem('dinesync_seen_calls_v3');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
@@ -59,7 +62,7 @@ const App: React.FC = () => {
 
   // Save seen IDs to persistent storage
   useEffect(() => {
-    localStorage.setItem('dinesync_seen_calls', JSON.stringify(Array.from(seenCallIds)));
+    localStorage.setItem('dinesync_seen_calls_v3', JSON.stringify(Array.from(seenCallIds)));
   }, [seenCallIds]);
 
   // Unified History and Back Gesture Management
@@ -134,10 +137,7 @@ const App: React.FC = () => {
               body,
               id: parseInt(call.order_waiter_call_id) || Math.floor(Math.random() * 10000),
               schedule: { at: new Date(Date.now() + 100) },
-              sound: 'default',
-              attachments: [],
-              actionTypeId: '',
-              extra: null,
+              sound: 'default'
             }
           ]
         });
@@ -149,7 +149,7 @@ const App: React.FC = () => {
     // 2. Browser/In-app Toast
     setActiveNotifications(prev => {
       if (prev.some(p => p.order_waiter_call_id === call.order_waiter_call_id)) return prev;
-      return [call, ...prev].slice(0, 3); // Max 3 toasts at once
+      return [call, ...prev].slice(0, 3); 
     });
 
     // Auto-dismiss toast after 8 seconds
@@ -247,13 +247,22 @@ const App: React.FC = () => {
       const tableData: any[] = response?.tables || [];
       const waiterCalls: WaiterCall[] = response?.waiter_calls || [];
 
-      // Detect new waiter calls
-      waiterCalls.forEach(call => {
-        if (!seenCallIds.has(call.order_waiter_call_id)) {
-          triggerNotification(call);
-          setSeenCallIds(prev => new Set(prev).add(call.order_waiter_call_id));
-        }
-      });
+      // Logic to handle new waiter calls
+      if (isFirstFetch.current) {
+        // Suppress notifications on the very first API call of the session
+        const initialSeen = new Set(seenCallIds);
+        waiterCalls.forEach(call => initialSeen.add(call.order_waiter_call_id));
+        setSeenCallIds(initialSeen);
+        isFirstFetch.current = false;
+      } else {
+        // Trigger notifications for truly new IDs
+        waiterCalls.forEach(call => {
+          if (!seenCallIds.has(call.order_waiter_call_id)) {
+            triggerNotification(call);
+            setSeenCallIds(prev => new Set(prev).add(call.order_waiter_call_id));
+          }
+        });
+      }
 
       const mappedTables: Table[] = tableData.map((t: any) => {
         const rawStatus = String(t.status || t.table_status || '').toLowerCase();
@@ -408,14 +417,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Handle PWA manual installation trigger
   const handleInstallClick = useCallback(() => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then((choiceResult: any) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the A2HS prompt');
-      }
+      if (choiceResult.outcome === 'accepted') console.log('User accepted PWA');
       setDeferredPrompt(null);
     });
   }, [deferredPrompt]);
@@ -508,10 +514,27 @@ const App: React.FC = () => {
     } catch (err: any) { setErrorStatus(`Order Creation: ${err.message}`); return false; } finally { setIsLoading(false); }
   };
 
-  const handleAcknowledgeCall = (callId: string) => {
-    // In a real app, you might send this back to the API. 
-    // Here we just remove it from seen state or active list locally.
-    setActiveNotifications(prev => prev.filter(c => c.order_waiter_call_id !== callId));
+  const handleAcknowledgeCall = async (callId: string) => {
+    if (!stateRef.current.rsId) return;
+    setIsLoading(true);
+    try {
+      await makeRequest(`${API_BASE_URL}api_update_waiter_call.php`, {
+        body: JSON.stringify({
+          rs_id: stateRef.current.rsId,
+          order_waiter_call_id: callId
+        })
+      });
+      // Optimistic local state update
+      setState(prev => ({
+        ...prev,
+        waiterCalls: prev.waiterCalls.filter(c => c.order_waiter_call_id !== callId)
+      }));
+      setActiveNotifications(prev => prev.filter(c => c.order_waiter_call_id !== callId));
+    } catch (err: any) {
+      setErrorStatus(`Failed to update waiter call: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (state.view === 'splash') return <SplashScreen />;
@@ -519,7 +542,6 @@ const App: React.FC = () => {
 
   return (
     <div className="h-full bg-slate-50 flex flex-col relative overflow-hidden">
-      {/* In-App Notification Overlay */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-[100] pointer-events-none space-y-3">
         {activeNotifications.map((call) => (
           <div 
@@ -534,10 +556,14 @@ const App: React.FC = () => {
               <p className="text-sm font-bold truncate">{call.call_info || 'Service Request'}</p>
             </div>
             <button 
-              onClick={() => handleAcknowledgeCall(call.order_waiter_call_id)}
-              className="p-2 text-slate-400 hover:text-white"
+              onClick={() => {
+                // If the user acknowledges from the toast, we use the dashboard's same confirmation logic
+                // For simplicity here, we'll just trigger handleAcknowledgeCall directly as the toast is high-intent
+                handleAcknowledgeCall(call.order_waiter_call_id);
+              }} 
+              className="p-2 text-slate-400 hover:text-white pointer-events-auto"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
             </button>
           </div>
         ))}
@@ -547,9 +573,7 @@ const App: React.FC = () => {
       
       <div className="max-w-4xl w-full mx-auto flex justify-between items-center px-4 py-3 bg-white border-b border-slate-100 z-50">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-            <span className="text-white font-black text-sm">{state.user.name?.[0] || 'U'}</span>
-          </div>
+          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg"><span className="text-white font-black text-sm">{state.user.name?.[0] || 'U'}</span></div>
           <div className="text-right ml-4">
             <p className="text-[9px] font-black text-indigo-500 uppercase">Sync</p>
             <p className="text-xs font-black text-slate-600">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
@@ -558,9 +582,7 @@ const App: React.FC = () => {
         <div className="flex gap-2">
           {!state.currentTable && (
             <button onClick={() => fetchTables()} className="p-2.5 bg-slate-50 text-slate-400 rounded-xl">
-              <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeWidth="3" />
-              </svg>
+              <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeWidth="3" /></svg>
             </button>
           )}
           <button onClick={handleLogout} className="bg-slate-900 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl">Log Out</button>
