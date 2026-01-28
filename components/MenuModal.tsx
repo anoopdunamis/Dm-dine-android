@@ -82,9 +82,9 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
         className="w-full max-w-3xl bg-slate-50 flex flex-col h-full shadow-2xl animate-in slide-in-from-bottom-8 duration-500 rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden sm:my-4 sm:h-[95vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header Section */}
+        {/* Header Section - Enhanced Padding for iPhone Notch */}
         <div className="bg-white border-b border-slate-100 safe-top shadow-xl shadow-slate-200/50 z-30">
-          <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+          <div className="px-6 pt-10 pb-4 flex items-center justify-between">
             <h2 className="text-2xl font-black tracking-tighter text-slate-900 flex items-center gap-2">
                Menu <span className="text-indigo-600">Collection</span>
             </h2>
@@ -99,7 +99,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ categories, items, onClose, onSel
             </button>
           </div>
 
-          <div className="px-6 pb-6 mt-4">
+          <div className="px-6 pb-6">
             {/* Search with modern styling */}
             <div className="relative mb-6">
               <input 
