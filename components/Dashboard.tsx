@@ -246,7 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <span className={`text-[9px] uppercase font-black tracking-[0.2em] mb-2 ${table.status === 'occupied' ? 'text-white/70' : 'text-slate-400'}`}>Table</span>
               <span className={`text-3xl font-black tracking-tighter ${table.status === 'occupied' ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>{table.table_no}</span>
               {table.status === 'occupied' ? (
-                  <div className="absolute bottom-4 flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
+                  <div className="absolute bottom-2 flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
                     <span className="text-[11px] font-black">{table.guest_count || 0}</span>
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
                   </div>
