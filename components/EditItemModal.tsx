@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { OrderItem, ItemPreference } from '../types';
 
@@ -18,37 +19,34 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
 
   const initialMappingDone = React.useRef(false);
 
+  // Resolved ID used for fetching preferences - OrderItem uses food_id as the menu item reference
+  const targetId = useMemo(() => {
+    return item.food_id || (item as any).Item_Id || (item as any).id;
+  }, [item]);
+
   useEffect(() => {
     let isMounted = true;
     const loadPrefs = async () => {
+      if (!targetId) return;
       setIsFetchingPrefs(true);
       try {
-        console.log("EditItemModal - Fetching for food_id:", item.food_id);
-        const prefs = await onFetchPreferences(item.food_id);
+        const prefs = await onFetchPreferences(targetId);
         
         if (!isMounted) return;
         
-        console.log("EditItemModal - Available Choices:", prefs);
-        setAvailablePrefs(prefs);
+        setAvailablePrefs(prefs || []);
         
-        // Initial setup of selected preferences from the current order item
         if (!initialMappingDone.current) {
-          const currentPrefNames = item.preferences.map(p => p.name.trim());
-          
-          // DEDUPLICATE: Use a Map with lowercased keys to ensure case-insensitive uniqueness
-          // Fix for potential TS build issues: Explicitly typing the Map and results.
+          const currentPrefNames = (item.preferences || []).map(p => (p.name || '').trim());
           const uniqueMap = new Map<string, string>();
           
-          // Add preferences from the current item first
           currentPrefNames.forEach(name => {
             if (name && !uniqueMap.has(name.toLowerCase())) {
               uniqueMap.set(name.toLowerCase(), name);
             }
           });
 
-          const uniqueInitial: string[] = Array.from(uniqueMap.values()).filter(Boolean);
-
-          setSelectedPrefs(uniqueInitial);
+          setSelectedPrefs(Array.from(uniqueMap.values()).filter(Boolean));
           initialMappingDone.current = true;
         }
       } catch (error) {
@@ -59,7 +57,12 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
     };
     loadPrefs();
     return () => { isMounted = false; };
-  }, [item.food_id, onFetchPreferences, item.preferences]); 
+  }, [targetId, onFetchPreferences, item.preferences]); 
+
+  // Log whenever available preferences change
+  useEffect(() => {
+    console.log(`[EditItemModal] availablePrefs changed. Count: ${availablePrefs.length}`, availablePrefs);
+  }, [availablePrefs]);
 
   const handleIncrement = () => setQuantity(prev => prev + 1);
   const handleDecrement = () => setQuantity(prev => Math.max(1, prev - 1));
@@ -70,13 +73,10 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
     const lowerName = trimmedName.toLowerCase();
 
     setSelectedPrefs(prev => {
-      // Case-insensitive existence check
       const exists = prev.some(p => p.toLowerCase() === lowerName);
       if (exists) {
-        // Use functional filter to ensure we remove all case variants
         return prev.filter(p => p.toLowerCase() !== lowerName);
       } else {
-        // Add the new one while preserving current selections
         return [...prev, trimmedName];
       }
     });
@@ -85,14 +85,14 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
   const handleClearAll = () => setSelectedPrefs([]);
 
   const filteredPrefs = useMemo(() => {
+    const query = searchQuery.toLowerCase();
     return availablePrefs.filter(p => {
-      const name = p.name || p.id || 'Option';
-      return name.toLowerCase().includes(searchQuery.toLowerCase());
+      const name = String(p.name || '').toLowerCase();
+      return name.includes(query);
     });
   }, [availablePrefs, searchQuery]);
 
   const handleUpdate = () => {
-    // FINAL DEDUPLICATE: Case-insensitive check before sending to server
     const uniqueMap = new Map<string, string>();
     selectedPrefs.forEach(p => {
       const trimmed = p.trim();
@@ -101,8 +101,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
       }
     });
     
-    const uniqueList: string[] = Array.from(uniqueMap.values());
-    const preferencesString = uniqueList.join('@');
+    const preferencesString = Array.from(uniqueMap.values()).join('@');
     onConfirm(quantity, preferencesString);
   };
 
@@ -175,8 +174,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
                   </div>
                 ) : filteredPrefs.length > 0 ? (
                   filteredPrefs.map((pref) => {
-                    const prefName = pref.name || pref.id || 'Option';
-                    // Robust check: Ensure we compare correctly with trim and lowercase
+                    const prefName = String(pref.name || pref.id || '');
                     const isSelected = selectedPrefs.some(p => p.trim().toLowerCase() === prefName.trim().toLowerCase());
                     return (
                       <button
