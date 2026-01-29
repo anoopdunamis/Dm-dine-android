@@ -394,14 +394,36 @@ const App: React.FC = () => {
 
   const fetchItemPreferences = useCallback(async (foodId: string): Promise<ItemPreference[]> => {
     if (!stateRef.current.rsId || !foodId) return [];
+    console.log(`[Preferences API] Fetching for foodId: ${foodId}`);
     try {
-      const response = await makeRequest(`${API_BASE_URL}api_item_preferencess.php`, { body: JSON.stringify({ rs_id: stateRef.current.rsId, food_id: foodId, item_id: foodId, Item_Id: foodId }) });
-      const prefsList = response?.preferencess || response?.item_preferencess || (Array.isArray(response) ? response : []);
-      return prefsList.map((p: any) => ({
-        id: String(p.p_id || p.id || Math.random().toString(36).substr(2, 9)),
-        name: String(p.p_name || p.food_preferencess || p.name || '')
-      })).filter((p: any) => p.name);
-    } catch (err) { return []; }
+      const response = await makeRequest(`${API_BASE_URL}api_item_preferencess.php`, { 
+        body: JSON.stringify({ rs_id: stateRef.current.rsId, food_id: foodId, item_id: foodId, Item_Id: foodId }) 
+      });
+      
+      console.log('[Preferences API] Raw Response:', response);
+      
+      // Included p_list from logs to ensure correct data extraction
+      const prefsList = response?.p_list || response?.preferencess || response?.preferences || response?.item_preferencess || response?.data || (Array.isArray(response) ? response : []);
+      
+      if (!Array.isArray(prefsList)) {
+        console.warn('[Preferences API] No array list found in response.');
+        return [];
+      }
+
+      const mapped = prefsList.map((p: any) => {
+        if (typeof p === 'string') return { id: p, name: p };
+        return {
+          id: String(p.p_id || p.id || p.food_preferencess_id || Math.random().toString(36).substr(2, 9)),
+          name: String(p.p_name || p.food_preferencess || p.food_preferencess_name || p.name || p.itemName || p.item_name || '')
+        };
+      }).filter((p: any) => p.name && p.name !== 'null' && p.name !== 'undefined' && p.name !== '');
+
+      console.log('[Preferences API] Mapped List:', mapped);
+      return mapped;
+    } catch (err) { 
+      console.error("[Preferences API] Fetch Error:", err);
+      return []; 
+    }
   }, []);
 
   useEffect(() => {
@@ -485,7 +507,19 @@ const App: React.FC = () => {
     try {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
-      await makeRequest(`${API_BASE_URL}api_add_item.php`, { body: JSON.stringify({ rs_id: state.rsId, table_no: state.currentTable, food_id: foodId, food_quantity: quantity, food_preferencess: preferences, waiter_code: waiterCode, master_order_id: mId }) });
+      await makeRequest(`${API_BASE_URL}api_add_item.php`, { 
+        body: JSON.stringify({ 
+          rs_id: state.rsId, 
+          table_no: state.currentTable, 
+          food_id: foodId, 
+          food_quantity: quantity, 
+          food_preferencess: preferences, 
+          food_preferencess_name: preferences,
+          preferencess: preferences,
+          waiter_code: waiterCode, 
+          master_order_id: mId 
+        }) 
+      });
       fetchOrders(state.currentTable, mId);
       return true;
     } catch (err: any) { setErrorStatus(`Add Item failed: ${err.message}`); return false; } finally { setIsLoading(false); }
@@ -521,7 +555,7 @@ const App: React.FC = () => {
     try {
       const currentT = state.tables.find(t => t.table_no === state.currentTable);
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
-      await makeRequest(`${API_BASE_URL}api_edit_item.php`, { body: JSON.stringify({ rs_id: state.rsId, master_order_id: mId, id: itemId, food_quantity: quantity, food_preferencess: preferences }) });
+      await makeRequest(`${API_BASE_URL}api_edit_item.php`, { body: JSON.stringify({ rs_id: state.rsId, master_order_id: mId, id: itemId, food_quantity: quantity, food_preferencess: preferences, food_preferencess_name: preferences, preferencess: preferences }) });
       if (state.currentTable) fetchOrders(state.currentTable, mId);
       return true;
     } catch (err: any) { setErrorStatus(`Edit failed: ${err.message}`); return false; } finally { setIsLoading(false); }
