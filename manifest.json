@@ -1,8 +1,8 @@
 
 {
-  "name": "Dyna-Menu Waiter",
-  "short_name": "DynaMenu",
-  "description": "Professional high-performance restaurant order management system.",
+  "name": "DM Dine",
+  "short_name": "DMDine",
+  "description": "DM Dine - Smart order monitoring for faster restaurant service.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -11,17 +11,17 @@
   "scope": "./",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3448/3448609.png",
+      "src": "https://dm-outlet.com/dmfp/webmenu/images/dmdineIcon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3448/3448609.png",
+      "src": "https://dm-outlet.com/dmfp/webmenu/images/dmdineIcon.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3448/3448609.png",
+      "src": "https://dm-outlet.com/dmfp/webmenu/images/dmdineIcon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -31,7 +31,7 @@
     {
       "name": "Open Tables",
       "url": "./",
-      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3448/3448609.png", "sizes": "192x192" }]
+      "icons": [{ "src": "https://dm-outlet.com/dmfp/webmenu/images/dmdineIcon.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "name": "Dyna-Menu Waiter",
-  "description": "A high-performance, mobile-responsive restaurant order management system designed for waiters and kitchen staff. Track table statuses, manage courses, and process orders with secure waiter verification.",
+  "name": "DM Dine",
+  "description": "DM Dine - Smart order monitoring for faster restaurant service.",
   "requestFramePermissions": [
     "camera"
   ]
