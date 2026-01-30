@@ -107,7 +107,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               disabled={isSubmitting}
               className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 active:scale-95 transition-all"
             >
-              Use Sample Account (z1 / 911)
+              For Sample Account
+              <p>Email: info@dyna-menu.com </p> 
+              <p> WhatsApp: +971 50 748 2052 </p> 
             </button>
           </div>
         </form>
