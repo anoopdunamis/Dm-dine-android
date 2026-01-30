@@ -47,7 +47,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2-2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
              </svg>
           </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Waiter Login</h2>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight">DM Dine</h2>
           <p className="text-slate-500 mt-2 font-medium">Enter credentials to start </p>
         </div>
 
@@ -67,7 +67,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-bold focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-                placeholder="Restaurant ID"
+                placeholder="Dyna-menu Login ID"
                 disabled={isSubmitting}
                 autoFocus
               />
