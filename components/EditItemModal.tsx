@@ -23,7 +23,17 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
   const targetId = useMemo(() => {
     return item.food_id || (item as any).Item_Id || (item as any).id;
   }, [item]);
-
+const DietarySymbol = ({ type, className = "" }: { type: 'Veg' | 'Non', className?: string }) => {
+  const isVeg = type === 'Veg';
+  return (
+    <div 
+      className={`w-4 h-4 border-2 flex items-center justify-center shrink-0 rounded-sm ${isVeg ? 'border-emerald-600' : 'border-rose-800'} ${className}`} 
+      title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+    >
+      <div className={`w-2 h-2 rounded-full ${isVeg ? 'bg-emerald-600' : 'bg-rose-800'}`} />
+    </div>
+  );
+};
   useEffect(() => {
     let isMounted = true;
     const loadPrefs = async () => {
@@ -110,15 +120,15 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ item, onClose, onConfirm,
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
       <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         <div className="p-8 flex flex-col h-full overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h3 className="text-2xl font-black text-slate-900">Edit Item</h3>
-              <p className="text-slate-500 text-sm font-bold uppercase tracking-tight">
+          <div className="flex justify-between items-start mb-2 gap-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-2xl font-black text-slate-900 truncate">Edit Item</h3>
+              <p className="text-slate-500 text-sm font-bold uppercase tracking-tight truncate">
                 {item.food_name}
               </p>
             </div>
             {selectedPrefs.length > 0 && (
-              <div className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-indigo-200 animate-in zoom-in">
+              <div className="shrink-0 bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-indigo-200 animate-in zoom-in whitespace-nowrap">
                 {selectedPrefs.length} SELECTED
               </div>
             )}
