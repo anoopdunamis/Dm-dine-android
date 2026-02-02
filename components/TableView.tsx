@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference, Category, MenuItem } from '../types';
 import VerificationModal from './VerificationModal';
@@ -6,6 +7,7 @@ import MenuModal from './MenuModal';
 import AddItemSelectionModal from './AddItemSelectionModal';
 
 interface TableViewProps {
+  rsId: string;
   table: Table;
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
@@ -23,6 +25,7 @@ interface TableViewProps {
 }
 
 const TableView: React.FC<TableViewProps> = ({ 
+  rsId,
   table, 
   orders, 
   orderInfo, 
@@ -38,7 +41,7 @@ const TableView: React.FC<TableViewProps> = ({
   onConfirmAll,
   onRefresh
 }) => {
-  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | 'edit' | 'menu' | 'add_selection' | null>(null);
+  const [modalType, setModalType] = useState<'delete' | 'confirm' | 'confirm_item' | 'confirm_all' | 'edit' | 'menu' | 'add_selection' | 'qr_code' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -70,6 +73,14 @@ const TableView: React.FC<TableViewProps> = ({
   const activeTotal = calculateTotal(activeItems);
   const taxValue = Number(orderInfo?.tax || table.tax || 0);
   const grandTotal = cartTotal + activeTotal + taxValue;
+
+  // QR Code URL Construction
+  // Prompt asks to replace "26" with table number.
+  // Original provided URL parts: rs_id=234, table=100
+  // We will use the dynamic rsId and table.table_no.
+  const qrBaseUrl = "https://quickchart.io/qr?text=";
+  const contentUrl = `https://dm-outlet.com/dmfp/administrator/dine_in_bill.php?rs_id=${rsId}&table=${table.table_no}&choe=UTF-8&order=`;
+  const qrFullUrl = `${qrBaseUrl}${encodeURIComponent(contentUrl)}`;
 
   // Manual Refresh Handler
   const handleManualRefresh = async () => {
@@ -227,10 +238,19 @@ const TableView: React.FC<TableViewProps> = ({
             </button>
             <div className="text-center flex-1">
               <h2 className="text-lg sm:text-xl font-black">Table {table.table_no}</h2>
-              <div className="flex items-center justify-center gap-2 mt-0.5">
-                 <span className="text-[10px] text-slate-400 font-black uppercase">Guests: {table.guest_count || '??'}</span>
-                 <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                 <span className="text-[10px] text-indigo-500 font-black uppercase">ID: {orderInfo?.master_order_id || 'NEW'}</span>
+              <div className="flex flex-col items-center mt-0.5">
+                <div className="flex items-center justify-center gap-2">
+                   <span className="text-[10px] text-slate-400 font-black uppercase">Guests: {table.guest_count || '??'}</span>
+                   <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                   <span className="text-[10px] text-indigo-500 font-black uppercase">ID: {orderInfo?.master_order_id || 'NEW'}</span>
+                </div>
+                <button 
+                  onClick={() => setModalType('qr_code')}
+                  className="mt-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v1m0 11v1m4-8h1m-1 4h1m-9-4h1m-1 4h1M4 4h4v4H4V4zm0 12h4v4H4v-4zm12 0h4v4h-4v-4zm0-12h4v4h-4V4z" /></svg>
+                  VIEW BILL
+                </button>
               </div>
             </div>
             
@@ -432,6 +452,47 @@ const TableView: React.FC<TableViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Bill QR Code Modal */}
+      {modalType === 'qr_code' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setModalType(null)}></div>
+          <div className="relative bg-white w-full max-w-sm rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+             <div className="p-8 flex flex-col items-center">
+                <div className="w-full flex justify-between items-start mb-6">
+                   <div className="flex flex-col">
+                      <h3 className="text-2xl font-black text-slate-900 leading-tight">Digital Bill</h3>
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mt-1">Table {table.table_no}</p>
+                   </div>
+                   <button onClick={() => setModalType(null)} className="p-2 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                   </button>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] border-4 border-slate-50 shadow-inner mb-6 ring-8 ring-slate-50/50">
+                  <img 
+                    src={qrFullUrl} 
+                    alt="Bill QR Code" 
+                    className="w-48 h-48 block mx-auto"
+                    onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add('opacity-100')}
+                  />
+                </div>
+
+                <p className="text-center text-slate-500 text-xs font-bold leading-relaxed max-w-[200px] mb-8">
+                  Guests can scan this QR code to view and pay their bill directly from their devices.
+                </p>
+
+                <button 
+                  onClick={() => setModalType(null)}
+                  className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-xl shadow-slate-200 active:scale-95 transition-all text-[10px] uppercase tracking-widest"
+                >
+                  Close Viewer
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {modalType === 'menu' && (
         <MenuModal 
           categories={categories}
@@ -461,7 +522,7 @@ const TableView: React.FC<TableViewProps> = ({
           isLoading={isProcessing}
         />
       )}
-      {(modalType && modalType !== 'edit' && modalType !== 'menu' && modalType !== 'add_selection') && (
+      {(modalType && modalType !== 'edit' && modalType !== 'menu' && modalType !== 'add_selection' && modalType !== 'qr_code') && (
         <VerificationModal 
           type={(modalType === 'confirm' || modalType === 'confirm_item' || modalType === 'confirm_all') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}
