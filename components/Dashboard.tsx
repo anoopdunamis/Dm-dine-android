@@ -249,7 +249,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" /></svg>
                   </div>
               ) : (
-                <div className="absolute bottom-4 flex flex-col items-center gap-1">
+                <div className="absolute bottom-2 flex flex-col items-center gap-1">
                    <div className="p-1.5 bg-indigo-50 rounded-full group-hover:bg-indigo-600 transition-colors">
                       <svg className="w-4 h-4 text-indigo-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                    </div>

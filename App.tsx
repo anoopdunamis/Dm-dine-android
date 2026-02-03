@@ -672,7 +672,8 @@ const App: React.FC = () => {
       <main className="flex-grow overflow-y-auto">
         {state.currentTable ? (
           <TableView 
-            table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable, status: 'inactive', guest_count: 0, tax: 0 }}
+            rsId={state.rsId || ''}
+            table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable || '', status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             orderInfo={state.orderInfo}
             categories={categories}
