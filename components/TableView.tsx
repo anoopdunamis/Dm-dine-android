@@ -74,6 +74,9 @@ const TableView: React.FC<TableViewProps> = ({
   const taxValue = Number(orderInfo?.tax || table.tax || 0);
   const grandTotal = cartTotal + activeTotal + taxValue;
 
+  const payStatus = (orderInfo?.payment_status || '').toLowerCase();
+  const isPaid = payStatus.includes('paid') && !payStatus.includes('not');
+
   // QR Code URL Construction for Bill
   const qrBaseUrl = "https://quickchart.io/qr?text=";
   const billContentUrl = `https://dm-outlet.com/dmfp/administrator/dine_in_bill.php?rs_id=${rsId}&table=${table.table_no}&choe=UTF-8&order=`;
@@ -146,6 +149,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleAction = async (code: string, note?: string) => {
+    if (isPaid) return; // Safeguard
     setIsProcessing(true);
     try {
         if (modalType === 'delete' && targetId) {
@@ -173,7 +177,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleEditSubmit = async (quantity: number, preferences: string) => {
-    if (!targetId) return;
+    if (!targetId || isPaid) return;
     setIsProcessing(true);
     try {
       if (await onEditItem(targetId, quantity, preferences)) {
@@ -186,7 +190,7 @@ const TableView: React.FC<TableViewProps> = ({
   };
 
   const handleAddItemSubmit = async (quantity: number, preferences: string, code: string) => {
-    if (!selectedMenuItem) return;
+    if (!selectedMenuItem || isPaid) return;
     setIsProcessing(true);
     try {
       if (await onAddItem(selectedMenuItem.id, quantity, preferences, code)) {
@@ -198,8 +202,6 @@ const TableView: React.FC<TableViewProps> = ({
     }
   };
 
-  const payStatus = (orderInfo?.payment_status || '').toLowerCase();
-  const isPaid = payStatus.includes('paid') && !payStatus.includes('not');
   const targetItem = orders.find(o => o.id === targetId);
 
   return (
@@ -259,21 +261,20 @@ const TableView: React.FC<TableViewProps> = ({
                     ONLINE QR
                   </button>
                 </div>
-                <div className="flex items-center justify-center gap-2 mt-2">
-
-                </div>
               </div>
             </div>
             
             <div className="flex items-center">
-                <button 
-                  onClick={() => setModalType('menu')}
-                  className="p-3 text-indigo-600 rounded-full transition-all active:scale-90 hover:bg-indigo-50 z-50 relative"
-                >
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </button>
+                {!isPaid && (
+                  <button 
+                    onClick={() => setModalType('menu')}
+                    className="p-3 text-indigo-600 rounded-full transition-all active:scale-90 hover:bg-indigo-50 z-50 relative"
+                  >
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+                )}
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleManualRefresh(); }} 
                   className="p-3 -mr-2 text-slate-400 rounded-full transition-all active:scale-90 hover:bg-slate-50 z-50 relative"
@@ -305,6 +306,11 @@ const TableView: React.FC<TableViewProps> = ({
                <span className="text-[10px] font-black text-slate-700">{table.guest_count || '??'}</span>
             </div>
           </div>
+          {isPaid && (
+            <div className="bg-emerald-50 py-1 text-center border-t border-emerald-100">
+              <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Order is Paid - Modifications Disabled</span>
+            </div>
+          )}
         </div>
 
         <div className="p-3 sm:p-6 space-y-4 flex-grow">
@@ -337,21 +343,25 @@ const TableView: React.FC<TableViewProps> = ({
                         <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2 border-t border-slate-50">
-                      <button 
-                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
-                        className="flex-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    {!isPaid && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-50">
+                        <button 
+                          onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                          className="flex-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-              <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
-                <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button>
-              </div>
+              {!isPaid && (
+                <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
+                  <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button>
+                </div>
+              )}
             </section>
           )}
 
@@ -361,7 +371,7 @@ const TableView: React.FC<TableViewProps> = ({
               <div className="bg-slate-900 px-5 py-3 flex justify-between items-center text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest">Order Details</span>
                 <div className="flex items-center gap-2">
-                  {hasPlacedItems && (
+                  {hasPlacedItems && !isPaid && (
                     <button 
                       onClick={() => setModalType('confirm_all')}
                       className="text-[9px] font-black bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg uppercase tracking-tight transition-colors"
@@ -399,30 +409,32 @@ const TableView: React.FC<TableViewProps> = ({
                         <span className="font-black text-slate-900">{formatCurrency(item.food_item_price * item.food_quantity)}</span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
-                      {item.status === OrderStatus.OCCUPIED && (
+                    {!isPaid && (
+                      <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                        {item.status === OrderStatus.OCCUPIED && (
+                          <button 
+                            onClick={() => { setTargetId(item.id); setModalType('edit'); }} 
+                            className="flex-1 bg-white border-2 border-indigo-50 text-indigo-600 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button 
-                          onClick={() => { setTargetId(item.id); setModalType('edit'); }} 
-                          className="flex-1 bg-white border-2 border-indigo-50 text-indigo-600 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
+                          onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
+                          className="flex-1 bg-white border-2 border-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
                         >
-                          Edit
+                          Delete
                         </button>
-                      )}
-                      <button 
-                        onClick={() => { setTargetId(item.id); setModalType('delete'); }} 
-                        className="flex-1 bg-white border-2 border-rose-50 text-rose-500 text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-sm"
-                      >
-                        Delete
-                      </button>
-                      {item.status === OrderStatus.OCCUPIED && (
-                        <button 
-                          onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} 
-                          className="flex-[2] bg-emerald-600 text-white text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-50"
-                        >
-                          Confirm
-                        </button>
-                      )}
-                    </div>
+                        {item.status === OrderStatus.OCCUPIED && (
+                          <button 
+                            onClick={() => { setTargetId(item.id); setModalType('confirm_item'); }} 
+                            className="flex-[2] bg-emerald-600 text-white text-[10px] font-black uppercase py-3 rounded-xl active:scale-95 transition-all shadow-lg shadow-emerald-50"
+                          >
+                            Confirm
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -434,16 +446,22 @@ const TableView: React.FC<TableViewProps> = ({
                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Ready for Service</h3>
+                <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight">
+                  {isPaid ? 'Order Finalized' : 'Ready for Service'}
+                </h3>
                 <p className="text-slate-400 text-sm font-medium max-w-[240px] text-center px-4 leading-relaxed">
-                  This table is currently clear. Start adding delicious items to begin a new guest order!
+                  {isPaid 
+                    ? 'This order has been paid. No further additions or changes can be made.' 
+                    : 'This table is currently clear. Start adding delicious items to begin a new guest order!'}
                 </p>
-                <button 
-                  onClick={() => setModalType('menu')}
-                  className="mt-6 bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 transition-all"
-                >
-                  Browse Menu
-                </button>
+                {!isPaid && (
+                  <button 
+                    onClick={() => setModalType('menu')}
+                    className="mt-6 bg-indigo-600 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 transition-all"
+                  >
+                    Browse Menu
+                  </button>
+                )}
               </div>
           )}
           {(activeItems.length > 0 || cartItems.length > 0) && (
@@ -551,7 +569,7 @@ const TableView: React.FC<TableViewProps> = ({
         </div>
       )}
 
-      {modalType === 'menu' && (
+      {modalType === 'menu' && !isPaid && (
         <MenuModal 
           categories={categories}
           items={menuItems}
@@ -562,7 +580,7 @@ const TableView: React.FC<TableViewProps> = ({
           }}
         />
       )}
-      {modalType === 'add_selection' && selectedMenuItem && (
+      {modalType === 'add_selection' && selectedMenuItem && !isPaid && (
         <AddItemSelectionModal 
           item={selectedMenuItem}
           onClose={() => setModalType('menu')}
@@ -571,7 +589,7 @@ const TableView: React.FC<TableViewProps> = ({
           isLoading={isProcessing}
         />
       )}
-      {modalType === 'edit' && targetItem && (
+      {modalType === 'edit' && targetItem && !isPaid && (
         <EditItemModal 
           item={targetItem}
           onClose={() => !isProcessing && setModalType(null)}
@@ -580,7 +598,7 @@ const TableView: React.FC<TableViewProps> = ({
           isLoading={isProcessing}
         />
       )}
-      {(modalType && modalType !== 'edit' && modalType !== 'menu' && modalType !== 'add_selection' && modalType !== 'qr_code' && modalType !== 'online_qr') && (
+      {(modalType && modalType !== 'edit' && modalType !== 'menu' && modalType !== 'add_selection' && modalType !== 'qr_code' && modalType !== 'online_qr') && !isPaid && (
         <VerificationModal 
           type={(modalType === 'confirm' || modalType === 'confirm_item' || modalType === 'confirm_all') ? 'confirm' : 'delete'}
           onClose={() => !isProcessing && setModalType(null)}
