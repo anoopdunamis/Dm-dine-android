@@ -12,7 +12,8 @@
     "cap:add-ios": "npx cap add ios",
     "cap:open-android": "npx cap open android",
     "cap:open-ios": "npx cap open ios",
-    "postbuild": "npx cap copy"
+    "postbuild": "npx cap copy",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.0.0",

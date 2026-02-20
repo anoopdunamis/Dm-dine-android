@@ -7,6 +7,7 @@ interface LoginPageProps {
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'waiter' | 'cashier'>('waiter');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -23,8 +24,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     try {
         const success = await onLogin(username, password);
         if (!success) {
-          setError('Invalid credentials. Please try again.');
+          setError('Invalid credentials. Please try again !.');
           setIsSubmitting(false);
+        } else {
+          // Store the selected role in localStorage so App can use it
+          localStorage.setItem('dinesync_login_role', role);
         }
     } catch (err: any) {
         setError(err.message || 'Connection failed. Please try again.');
@@ -49,6 +53,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">DM Dine</h2>
           <p className="text-slate-500 mt-2 font-medium">Enter credentials to start </p>
+        </div>
+
+        <div className="flex p-1 bg-slate-100 rounded-2xl mb-8">
+          <button
+            type="button"
+            onClick={() => setRole('waiter')}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${role === 'waiter' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Waiter
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('cashier')}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${role === 'cashier' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Cashier
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

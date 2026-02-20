@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference, Category, MenuItem, WaiterCall } from './types';
 import Dashboard from './components/Dashboard';
+import CashierDashboard from './components/CashierDashboard';
 import TableView from './components/TableView';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
@@ -463,7 +464,8 @@ const App: React.FC = () => {
       const userData = response.user || {};
       const rsId = String(userData.rs_id || response.rs_id || '');
       if ((response.success === true || response.status === 'success') && rsId) {
-        setState(prev => ({ ...prev, isAuthenticated: true, rsId, user: { id: String(userData.id || ''), name: userData.name || user, role: userData.user_type === '1' ? 'Admin' : 'Staff', restaurantName: userData.restaurant_name }, view: 'main' }));
+        const selectedRole = localStorage.getItem('dinesync_login_role') || (userData.user_type === '1' ? 'Admin' : 'Staff');
+        setState(prev => ({ ...prev, isAuthenticated: true, rsId, user: { id: String(userData.id || ''), name: userData.name || user, role: selectedRole, restaurantName: userData.restaurant_name }, view: 'main' }));
         window.location.hash = '/dashboard';
         return true;
       }
@@ -687,6 +689,14 @@ const App: React.FC = () => {
             onFetchItemPreferences={fetchItemPreferences}
             onConfirmAll={handleConfirmAllItems}
             onRefresh={handleRefreshCurrentTable}
+          />
+        ) : state.user.role === 'cashier' ? (
+          <CashierDashboard 
+            tables={state.tables}
+            onSelectTable={handleSelectTable}
+            restaurantName={state.user.restaurantName}
+            isOnline={isOnline}
+            syncError={syncError}
           />
         ) : (
           <Dashboard 
