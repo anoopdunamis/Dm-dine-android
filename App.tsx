@@ -288,7 +288,10 @@ const App: React.FC = () => {
     if (!silent) setIsLoading(true);
     try {
       const response = await makeRequest(`${API_BASE_URL}api_tables.php`, {
-        body: JSON.stringify({ rs_id: stateRef.current.rsId })
+        body: JSON.stringify({ 
+          rs_id: stateRef.current.rsId,
+          dashboard: stateRef.current.user.role || 'waiter'
+        })
       });
       
       const tableData: any[] = response?.tables || [];
