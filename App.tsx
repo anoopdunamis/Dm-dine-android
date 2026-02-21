@@ -319,6 +319,7 @@ const App: React.FC = () => {
         return {
           table_no: String(t.table_no || t.id || '??'),
           status: (rawStatus === 'occupied' || rawStatus === '1') ? 'occupied' : 'inactive',
+          order_type: t.order_type,
           guest_count: Number(t.guest_order_type || t.guest_count || 0),
           tax: Number(t.tax || 0),
           master_order_id: t.master_order_id || null
