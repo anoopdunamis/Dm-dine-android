@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 
 interface LoginPageProps {
-  onLogin: (user: string, pass: string) => Promise<boolean>;
+  onLogin: (user: string, pass: string, role: string) => Promise<boolean>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'waiter' | 'cashier'>('waiter');
+  const [role, setRole] = useState<'waiter' | 'cashier'>(() => {
+    const savedRole = localStorage.getItem('dinesync_login_role');
+    return (savedRole === 'cashier' || savedRole === 'waiter') ? savedRole : 'waiter';
+  });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +25,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
     
     try {
-        const success = await onLogin(username, password);
+        const success = await onLogin(username, password, role);
         if (!success) {
           setError('Invalid credentials. Please try again !.');
           setIsSubmitting(false);

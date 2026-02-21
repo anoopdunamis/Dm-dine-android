@@ -457,14 +457,13 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [state.isAuthenticated, state.view, state.rsId, fetchTables, fetchOrders]);
 
-  const handleLogin = async (user: string, pass: string) => {
+  const handleLogin = async (user: string, pass: string, selectedRole: string) => {
     setIsLoading(true);
     try {
       const response = await makeRequest(`${API_BASE_URL}api_auth.php`, { body: JSON.stringify({ username: user, password: pass }) });
       const userData = response.user || {};
       const rsId = String(userData.rs_id || response.rs_id || '');
       if ((response.success === true || response.status === 'success') && rsId) {
-        const selectedRole = localStorage.getItem('dinesync_login_role') || (userData.user_type === '1' ? 'Admin' : 'Staff');
         setState(prev => ({ ...prev, isAuthenticated: true, rsId, user: { id: String(userData.id || ''), name: userData.name || user, role: selectedRole, restaurantName: userData.restaurant_name }, view: 'main' }));
         window.location.hash = '/dashboard';
         return true;
