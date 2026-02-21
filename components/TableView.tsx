@@ -241,7 +241,9 @@ const TableView: React.FC<TableViewProps> = ({
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div className="text-center flex-1">
-              <h2 className="text-lg sm:text-xl font-black">Table {table.table_no}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '1' || table.order_type === '1' || table.order_type === 1) ? 'Table ' + table.table_no : ''}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '2' || table.order_type === '2' || table.order_type === 2) ? 'TAKE AWAY' : ''}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '3' || table.order_type === '3' || table.order_type === 3) ? 'DELIVERY ' : ''}</h2>
               <div className="flex flex-col items-center mt-0.5">
                 <div className="flex items-center justify-center gap-2">
                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
@@ -319,7 +321,7 @@ const TableView: React.FC<TableViewProps> = ({
             <section className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden ring-4 ring-indigo-50/50">
               <div className="bg-indigo-600 px-5 py-3 flex justify-between items-center text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest">New Items (Cart)</span>
-                <span className="text-[10px] font-black opacity-70">DRAFT</span>
+                <span className="text-[10px] font-black opacity-70">IN CART</span>
               </div>
               <div className="divide-y divide-slate-50">
                 {cartItems.map(item => (
@@ -359,7 +361,7 @@ const TableView: React.FC<TableViewProps> = ({
               {!isPaid && (
                 <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                   <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
-                  <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button>
+                 {/* <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button> */} 
                 </div>
               )}
             </section>

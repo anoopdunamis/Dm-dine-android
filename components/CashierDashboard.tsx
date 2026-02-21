@@ -59,11 +59,11 @@ const CashierDashboard: React.FC<CashierDashboardProps> = ({
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-lg">
-                    {table.table_no}
+                    {table.master_order_id}
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bill / Order #</p>
-                    <p className="text-sm font-black text-slate-900">{table.master_order_id}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bill - Account #</p>
+                    <p className="text-sm font-black text-slate-900">{table.order_account}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

@@ -83,6 +83,8 @@ export interface Table {
   guest_count: number;
   tax: number;
   master_order_id?: string | null;
+  order_type?: string | number;
+  order_account?: string;
 }
 
 export interface UserInfo {
