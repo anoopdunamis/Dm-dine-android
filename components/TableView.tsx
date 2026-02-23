@@ -86,7 +86,8 @@ const TableView: React.FC<TableViewProps> = ({
 
   // QR Code URL Construction for Online Ordering
   const masterOrderId = orderInfo?.master_order_id || table.master_order_id || '';
-  const onlineQrContentUrl = `https://dm-outlet.com/dmfp/webmenu/dinein.php?rs_id=${rsId}&lan=English&order_id=${masterOrderId}`;
+  const selecteRedirect=(orderInfo?.order_type === '1' || table.order_type === '1' || table.order_type === 1) ? 'dinein.php': 'takeaway.php'
+  const onlineQrContentUrl = `https://dm-outlet.com/dmfp/webmenu/${selecteRedirect}?rs_id=${rsId}&lan=English&order_id=${masterOrderId}`;
   const onlineQrFullUrl = `${qrBaseUrl}${encodeURIComponent(onlineQrContentUrl)}`;
 
   // Manual Refresh Handler
