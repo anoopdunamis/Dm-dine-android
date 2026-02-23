@@ -53,7 +53,7 @@ const CashierDashboard: React.FC<CashierDashboardProps> = ({
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             {occupiedTables.map((table, index) => (
               <button
-                key={table.table_no}
+                key={`${table.table_no}-${table.master_order_id || index}`}
                 onClick={() => onSelectTable(table.table_no)}
                 className={`w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors ${index !== occupiedTables.length - 1 ? 'border-bottom border-slate-50' : ''}`}
               >

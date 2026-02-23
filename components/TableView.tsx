@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference, Category, MenuItem } from '../types';
+import { Table, OrderItem, OrderStatus, OrderInfo, CustomerInfo, ItemPreference, Category, MenuItem } from '../types';
 import VerificationModal from './VerificationModal';
 import EditItemModal from './EditItemModal';
 import MenuModal from './MenuModal';
@@ -11,6 +11,7 @@ interface TableViewProps {
   table: Table;
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  customerInfo: CustomerInfo | null;
   categories: Category[];
   menuItems: MenuItem[];
   onBack: () => void;
@@ -29,6 +30,7 @@ const TableView: React.FC<TableViewProps> = ({
   table, 
   orders, 
   orderInfo, 
+  customerInfo,
   categories,
   menuItems,
   onBack, 
@@ -311,6 +313,46 @@ const TableView: React.FC<TableViewProps> = ({
           {isPaid && (
             <div className="bg-emerald-50 py-1 text-center border-t border-emerald-100">
               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Order is Paid - Modifications Disabled</span>
+            </div>
+          )}
+          {customerInfo && (customerInfo.customer_name || customerInfo.customer_phone || customerInfo.customer_address || customerInfo.customer_note) && (
+            <div className="bg-indigo-50/50 border-t border-indigo-100 p-3 sm:px-4">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Customer Details</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {customerInfo.customer_name && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Name:</span>
+                    <span className="text-slate-600">{customerInfo.customer_name}</span>
+                  </div>
+                )}
+                {customerInfo.customer_phone && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Phone:</span>
+                    <span className="text-slate-600">{customerInfo.customer_phone}</span>
+                  </div>
+                )}
+                {customerInfo.customer_email && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Email:</span>
+                    <span className="text-slate-600">{customerInfo.customer_email}</span>
+                  </div>
+                )}
+                {customerInfo.customer_address && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Address:</span>
+                    <span className="text-slate-600">{customerInfo.customer_address}</span>
+                  </div>
+                )}
+                {customerInfo.customer_note && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Note:</span>
+                    <span className="text-slate-600 italic">{customerInfo.customer_note}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

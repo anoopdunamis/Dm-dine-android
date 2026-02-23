@@ -96,6 +96,14 @@ export interface UserInfo {
 
 export type AppView = 'splash' | 'login' | 'main';
 
+export interface CustomerInfo {
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  customer_address?: string;
+  customer_note?: string;
+}
+
 export interface AppState {
   view: AppView;
   isAuthenticated: boolean;
@@ -105,5 +113,6 @@ export interface AppState {
   tables: Table[];
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  customerInfo: CustomerInfo | null;
   waiterCalls: WaiterCall[];
 }

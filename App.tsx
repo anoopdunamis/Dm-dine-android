@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, ItemPreference, Category, MenuItem, WaiterCall } from './types';
+import { Table, OrderItem, OrderStatus, AppState, UserInfo, OrderInfo, CustomerInfo, ItemPreference, Category, MenuItem, WaiterCall } from './types';
 import Dashboard from './components/Dashboard';
 import CashierDashboard from './components/CashierDashboard';
 import TableView from './components/TableView';
@@ -44,6 +44,7 @@ const App: React.FC = () => {
       tables: [], 
       orders: [],
       orderInfo: null,
+      customerInfo: null,
       waiterCalls: []
     };
   });
@@ -346,6 +347,7 @@ const App: React.FC = () => {
       });
       let orderItems: any[] = response?.order_items || [];
       let orderInfo: OrderInfo | null = response?.orders_info?.[0] || null;
+      let customerInfo: CustomerInfo | null = response?.customer_info?.[0] || null;
       const mappedOrders: OrderItem[] = orderItems.map((o: any) => {
         let mappedStatus = OrderStatus.CONFIRMED;
         const apiStatus = String(o.order_item_status || '').toLowerCase();
@@ -371,7 +373,7 @@ const App: React.FC = () => {
           food_image: o.food_image || o.Image_Thumb || o.image_thumb || ''
         };
       });
-      setState(prev => ({ ...prev, orders: mappedOrders, orderInfo }));
+      setState(prev => ({ ...prev, orders: mappedOrders, orderInfo, customerInfo }));
       setSyncError(false);
     } catch (err: any) {
       setSyncError(true);
@@ -682,6 +684,7 @@ const App: React.FC = () => {
             table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable || '', status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             orderInfo={state.orderInfo}
+            customerInfo={state.customerInfo}
             categories={categories}
             menuItems={menuItems}
             onBack={handleBackToDashboard}
