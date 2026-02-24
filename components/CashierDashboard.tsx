@@ -4,7 +4,7 @@ import { Table } from '../types';
 
 interface CashierDashboardProps {
   tables: Table[];
-  onSelectTable: (tableNo: string) => void;
+  onSelectTable: (tableNo: string, masterOrderId?: string | null) => void;
   restaurantName?: string | null;
   isOnline: boolean;
   syncError: boolean;
@@ -54,7 +54,7 @@ const CashierDashboard: React.FC<CashierDashboardProps> = ({
             {occupiedTables.map((table, index) => (
               <button
                 key={`${table.table_no}-${table.master_order_id || index}`}
-                onClick={() => onSelectTable(table.table_no)}
+                onClick={() => onSelectTable(table.table_no, table.master_order_id)}
                 className={`w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors ${index !== occupiedTables.length - 1 ? 'border-bottom border-slate-50' : ''}`}
               >
                 <div className="flex items-center gap-4">

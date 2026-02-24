@@ -110,6 +110,7 @@ export interface AppState {
   user: UserInfo;
   rsId: string | null;
   currentTable: string | null;
+  currentMasterOrderId?: string | null;
   tables: Table[];
   orders: OrderItem[];
   orderInfo: OrderInfo | null;

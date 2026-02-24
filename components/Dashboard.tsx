@@ -7,7 +7,7 @@ interface DashboardProps {
   tables: Table[];
   orders: OrderItem[];
   waiterCalls: WaiterCall[];
-  onSelectTable: (tableNo: string) => void;
+  onSelectTable: (tableNo: string, masterOrderId?: string | null) => void;
   onCreateOrder: (tableNo: string, code: string, pass: string, guestNos: number) => Promise<boolean>;
   onInstall?: () => void;
   restaurantName?: string | null;
@@ -55,7 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleTableClick = (table: Table) => {
     if (table.status === 'occupied') {
-      onSelectTable(table.table_no);
+      onSelectTable(table.table_no, table.master_order_id);
     } else {
       setSelectedTableForNewOrder(table.table_no);
     }

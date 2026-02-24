@@ -41,6 +41,7 @@ const App: React.FC = () => {
       user: initialState?.user || { id: null, name: null, role: null, restaurantName: null },
       rsId: initialState?.rsId || null,
       currentTable: null,
+      currentMasterOrderId: null,
       tables: [], 
       orders: [],
       orderInfo: null,
@@ -73,12 +74,14 @@ const App: React.FC = () => {
       const hash = window.location.hash;
       if (hash === '#/dashboard' || !hash || hash === '#/' || hash === '') {
         if (stateRef.current.currentTable !== null) {
-          setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+          setState(prev => ({ ...prev, currentTable: null, currentMasterOrderId: null, orders: [], orderInfo: null, customerInfo: null }));
         }
       } else if (hash.startsWith('#/table/')) {
-        const tableNo = hash.replace('#/table/', '');
-        if (stateRef.current.currentTable !== tableNo) {
-          setState(prev => ({ ...prev, currentTable: tableNo }));
+        const parts = hash.replace('#/table/', '').split('/');
+        const tableNo = parts[0];
+        const masterOrderId = parts[1] || null;
+        if (stateRef.current.currentTable !== tableNo || stateRef.current.currentMasterOrderId !== masterOrderId) {
+          setState(prev => ({ ...prev, currentTable: tableNo, currentMasterOrderId: masterOrderId }));
         }
       }
     };
@@ -446,19 +449,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (state.currentTable) {
-      const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
-      fetchOrders(state.currentTable, t?.master_order_id);
+      const t = state.tables.find(tbl => tbl.table_no === state.currentTable && (!state.currentMasterOrderId || tbl.master_order_id === state.currentMasterOrderId));
+      fetchOrders(state.currentTable, state.currentMasterOrderId || t?.master_order_id);
       fetchMenu();
     }
-  }, [state.currentTable, fetchMenu, fetchOrders, state.tables]);
+  }, [state.currentTable, state.currentMasterOrderId, fetchMenu, fetchOrders, state.tables]);
 
   useEffect(() => {
     if (!state.isAuthenticated || state.view !== 'main' || !state.rsId) return;
     const interval = setInterval(() => {
       const cur = stateRef.current;
       if (cur.currentTable) {
-        const t = cur.tables.find(tbl => tbl.table_no === cur.currentTable);
-        fetchOrders(cur.currentTable, t?.master_order_id, true);
+        const t = cur.tables.find(tbl => tbl.table_no === cur.currentTable && (!cur.currentMasterOrderId || tbl.master_order_id === cur.currentMasterOrderId));
+        fetchOrders(cur.currentTable, cur.currentMasterOrderId || t?.master_order_id, true);
       } else fetchTables(true);
     }, 15000);
     return () => clearInterval(interval);
@@ -485,11 +488,17 @@ const App: React.FC = () => {
     window.location.hash = '/';
   };
 
-  const handleSelectTable = (tableNo: string) => { window.location.hash = `/table/${tableNo}`; };
+  const handleSelectTable = (tableNo: string, masterOrderId?: string | null) => { 
+    if (masterOrderId) {
+      window.location.hash = `/table/${tableNo}/${masterOrderId}`; 
+    } else {
+      window.location.hash = `/table/${tableNo}`; 
+    }
+  };
   const handleBackToDashboard = useCallback(() => {
     window.location.hash = '/dashboard';
     if (stateRef.current.currentTable !== null) {
-      setState(prev => ({ ...prev, currentTable: null, orders: [], orderInfo: null }));
+      setState(prev => ({ ...prev, currentTable: null, currentMasterOrderId: null, orders: [], orderInfo: null, customerInfo: null }));
     }
   }, []);
 
@@ -504,8 +513,8 @@ const App: React.FC = () => {
 
   const handleRefreshCurrentTable = async () => {
     if (state.currentTable) {
-      const t = state.tables.find(tbl => tbl.table_no === state.currentTable);
-      await fetchOrders(state.currentTable, t?.master_order_id);
+      const t = state.tables.find(tbl => tbl.table_no === state.currentTable && (!state.currentMasterOrderId || tbl.master_order_id === state.currentMasterOrderId));
+      await fetchOrders(state.currentTable, state.currentMasterOrderId || t?.master_order_id);
     }
   };
 
@@ -513,7 +522,7 @@ const App: React.FC = () => {
     if (!state.rsId || !state.currentTable) return false;
     setIsLoading(true);
     try {
-      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const currentT = state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId));
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_add_item.php`, { 
         body: JSON.stringify({ 
@@ -537,7 +546,7 @@ const App: React.FC = () => {
     if (!state.rsId) return false;
     setIsLoading(true);
     try {
-      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const currentT = state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId));
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_delete_item.php`, { body: JSON.stringify({ rs_id: state.rsId, id: itemId, waiter_code: waiterCode, master_order_id: mId }) });
       if (state.currentTable) fetchOrders(state.currentTable, mId);
@@ -549,7 +558,7 @@ const App: React.FC = () => {
     if (!state.rsId) return false;
     setIsLoading(true);
     try {
-      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const currentT = state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId));
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_confirm_order.php`, { body: JSON.stringify({ rs_id: state.rsId, id: itemId, waiter_code: waiterCode, note, master_order_id: mId }) });
       if (state.currentTable) fetchOrders(state.currentTable, mId);
@@ -561,7 +570,7 @@ const App: React.FC = () => {
     if (!state.rsId) return false;
     setIsLoading(true);
     try {
-      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const currentT = state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId));
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_edit_item.php`, { body: JSON.stringify({ rs_id: state.rsId, master_order_id: mId, id: itemId, food_quantity: quantity, food_preferencess: preferences, food_preferencess_name: preferences, preferencess: preferences }) });
       if (state.currentTable) fetchOrders(state.currentTable, mId);
@@ -573,7 +582,7 @@ const App: React.FC = () => {
     if (!state.rsId || !state.currentTable) return false;
     setIsLoading(true);
     try {
-      const currentT = state.tables.find(t => t.table_no === state.currentTable);
+      const currentT = state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId));
       const mId = state.orderInfo?.master_order_id || currentT?.master_order_id || '';
       await makeRequest(`${API_BASE_URL}api_confirm_all_items.php`, { body: JSON.stringify({ rs_id: state.rsId, master_order_id: mId, waiter_code: waiterCode, note }) });
       fetchOrders(state.currentTable, mId);
@@ -585,7 +594,7 @@ const App: React.FC = () => {
     if (!state.rsId) return false;
     setIsLoading(true);
     try {
-      const t = state.tables.find(tbl => tbl.table_no === tableNo);
+      const t = state.tables.find(tbl => tbl.table_no === tableNo && (!state.currentMasterOrderId || tbl.master_order_id === state.currentMasterOrderId));
       await makeRequest(`${API_BASE_URL}api_confirm_order.php`, { body: JSON.stringify({ rs_id: state.rsId, table_no: tableNo, waiter_code: waiterCode, note, master_order_id: t?.master_order_id || '' }) });
       fetchOrders(tableNo, t?.master_order_id);
       return true;
@@ -681,7 +690,7 @@ const App: React.FC = () => {
         {state.currentTable ? (
           <TableView 
             rsId={state.rsId || ''}
-            table={state.tables.find(t => t.table_no === state.currentTable) || { table_no: state.currentTable || '', status: 'inactive', guest_count: 0, tax: 0 }}
+            table={state.tables.find(t => t.table_no === state.currentTable && (!state.currentMasterOrderId || t.master_order_id === state.currentMasterOrderId)) || { table_no: state.currentTable || '', status: 'inactive', guest_count: 0, tax: 0 }}
             orders={state.orders}
             orderInfo={state.orderInfo}
             customerInfo={state.customerInfo}
