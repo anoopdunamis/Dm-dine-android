@@ -7,7 +7,7 @@ interface DashboardProps {
   tables: Table[];
   orders: OrderItem[];
   waiterCalls: WaiterCall[];
-  onSelectTable: (tableNo: string, masterOrderId?: string | null) => void;
+  onSelectTable: (tableNo: string) => void;
   onCreateOrder: (tableNo: string, code: string, pass: string, guestNos: number) => Promise<boolean>;
   onInstall?: () => void;
   restaurantName?: string | null;
@@ -55,7 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleTableClick = (table: Table) => {
     if (table.status === 'occupied') {
-      onSelectTable(table.table_no, table.master_order_id);
+      onSelectTable(table.table_no);
     } else {
       setSelectedTableForNewOrder(table.table_no);
     }
@@ -234,9 +234,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
         {filteredTables.length > 0 ? (
-          filteredTables.map((table) => (
+          filteredTables.map((table, index) => (
             <button
-              key={table.table_no}
+              key={`${table.table_no}-${table.master_order_id || index}`}
               onClick={() => handleTableClick(table)}
               className={`relative aspect-[4/5] flex flex-col items-center justify-center rounded-[2rem] shadow-sm transition-all duration-500 group overflow-hidden ${table.status === 'occupied' ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-100 active:scale-95 cursor-pointer border-b-4 border-orange-600/30' : 'bg-white text-slate-300 border-2 border-slate-100 hover:border-indigo-200 active:scale-95 cursor-pointer'}`}
             >
