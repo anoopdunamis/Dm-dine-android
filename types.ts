@@ -83,6 +83,8 @@ export interface Table {
   guest_count: number;
   tax: number;
   master_order_id?: string | null;
+  order_type?: string | number;
+  order_account?: string;
 }
 
 export interface UserInfo {
@@ -94,14 +96,24 @@ export interface UserInfo {
 
 export type AppView = 'splash' | 'login' | 'main';
 
+export interface CustomerInfo {
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  customer_address?: string;
+  customer_note?: string;
+}
+
 export interface AppState {
   view: AppView;
   isAuthenticated: boolean;
   user: UserInfo;
   rsId: string | null;
   currentTable: string | null;
+  currentMasterOrderId?: string | null;
   tables: Table[];
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  customerInfo: CustomerInfo | null;
   waiterCalls: WaiterCall[];
 }

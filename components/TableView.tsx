@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Table, OrderItem, OrderStatus, OrderInfo, ItemPreference, Category, MenuItem } from '../types';
+import { Table, OrderItem, OrderStatus, OrderInfo, CustomerInfo, ItemPreference, Category, MenuItem } from '../types';
 import VerificationModal from './VerificationModal';
 import EditItemModal from './EditItemModal';
 import MenuModal from './MenuModal';
@@ -11,6 +11,7 @@ interface TableViewProps {
   table: Table;
   orders: OrderItem[];
   orderInfo: OrderInfo | null;
+  customerInfo: CustomerInfo | null;
   categories: Category[];
   menuItems: MenuItem[];
   onBack: () => void;
@@ -29,6 +30,7 @@ const TableView: React.FC<TableViewProps> = ({
   table, 
   orders, 
   orderInfo, 
+  customerInfo,
   categories,
   menuItems,
   onBack, 
@@ -84,7 +86,8 @@ const TableView: React.FC<TableViewProps> = ({
 
   // QR Code URL Construction for Online Ordering
   const masterOrderId = orderInfo?.master_order_id || table.master_order_id || '';
-  const onlineQrContentUrl = `https://dm-outlet.com/dmfp/webmenu/dinein.php?rs_id=${rsId}&lan=English&order_id=${masterOrderId}`;
+  const selecteRedirect=(orderInfo?.order_type === '1' || table.order_type === '1' || table.order_type === 1) ? 'dinein.php': 'takeaway.php'
+  const onlineQrContentUrl = `https://dm-outlet.com/dmfp/webmenu/${selecteRedirect}?rs_id=${rsId}&lan=English&order_id=${masterOrderId}`;
   const onlineQrFullUrl = `${qrBaseUrl}${encodeURIComponent(onlineQrContentUrl)}`;
 
   // Manual Refresh Handler
@@ -241,7 +244,9 @@ const TableView: React.FC<TableViewProps> = ({
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div className="text-center flex-1">
-              <h2 className="text-lg sm:text-xl font-black">Table {table.table_no}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '1' || table.order_type === '1' || table.order_type === 1) ? 'Table ' + table.table_no : ''}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '2' || table.order_type === '2' || table.order_type === 2) ? 'TAKE AWAY' : ''}</h2>
+              <h2 className="text-lg sm:text-xl font-black">{(orderInfo?.order_type === '3' || table.order_type === '3' || table.order_type === 3) ? 'DELIVERY ' : ''}</h2>
               <div className="flex flex-col items-center mt-0.5">
                 <div className="flex items-center justify-center gap-2">
                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
@@ -311,6 +316,46 @@ const TableView: React.FC<TableViewProps> = ({
               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Order is Paid - Modifications Disabled</span>
             </div>
           )}
+          {customerInfo && (customerInfo.customer_name || customerInfo.customer_phone || customerInfo.customer_address || customerInfo.customer_note) && (
+            <div className="bg-indigo-50/50 border-t border-indigo-100 p-3 sm:px-4">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Customer Details</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {customerInfo.customer_name && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Name:</span>
+                    <span className="text-slate-600">{customerInfo.customer_name}</span>
+                  </div>
+                )}
+                {customerInfo.customer_phone && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Phone:</span>
+                    <span className="text-slate-600">{customerInfo.customer_phone}</span>
+                  </div>
+                )}
+                {customerInfo.customer_email && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Email:</span>
+                    <span className="text-slate-600">{customerInfo.customer_email}</span>
+                  </div>
+                )}
+                {customerInfo.customer_address && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Address:</span>
+                    <span className="text-slate-600">{customerInfo.customer_address}</span>
+                  </div>
+                )}
+                {customerInfo.customer_note && (
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <span className="font-bold text-slate-700 min-w-[60px]">Note:</span>
+                    <span className="text-slate-600 italic">{customerInfo.customer_note}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-3 sm:p-6 space-y-4 flex-grow">
@@ -319,7 +364,7 @@ const TableView: React.FC<TableViewProps> = ({
             <section className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden ring-4 ring-indigo-50/50">
               <div className="bg-indigo-600 px-5 py-3 flex justify-between items-center text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest">New Items (Cart)</span>
-                <span className="text-[10px] font-black opacity-70">DRAFT</span>
+                <span className="text-[10px] font-black opacity-70">IN CART</span>
               </div>
               <div className="divide-y divide-slate-50">
                 {cartItems.map(item => (
@@ -359,7 +404,7 @@ const TableView: React.FC<TableViewProps> = ({
               {!isPaid && (
                 <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                   <p className="text-xl font-black">{formatCurrency(cartTotal)}</p>
-                  <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button>
+                 {/* <button onClick={() => setModalType('confirm')} className="bg-slate-900 text-white text-xs font-black px-6 py-3.5 rounded-2xl uppercase tracking-widest">Send All</button> */} 
                 </div>
               )}
             </section>
