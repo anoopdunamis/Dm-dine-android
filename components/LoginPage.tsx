@@ -16,8 +16,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [apiUrl, setApiUrl] = useState(() => {
-    const current = getApiBaseUrl();
-    return current === DEFAULT_API_BASE_URL ? '' : current;
+    let current = getApiBaseUrl();
+    if (current === DEFAULT_API_BASE_URL) return '';
+    return current.endsWith('json/') ? current.slice(0, -5) : current;
   });
   const [imageUrl, setImageUrl] = useState(() => {
     const current = getImageBaseUrl();
