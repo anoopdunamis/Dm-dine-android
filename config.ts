@@ -3,7 +3,10 @@ export const DEFAULT_IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.
 
 export const getApiBaseUrl = () => {
   let url = localStorage.getItem('dinesync_api_base_url') || DEFAULT_API_BASE_URL;
-  if (url && !url.endsWith('/')) url += '/';
+  if (url) {
+    if (!url.endsWith('/')) url += '/';
+    if (!url.endsWith('json/')) url += 'json/';
+  }
   return url;
 };
 
@@ -15,6 +18,9 @@ export const setApiBaseUrl = (url: string) => {
     }
     if (!finalUrl.endsWith('/')) {
       finalUrl += '/';
+    }
+    if (!finalUrl.endsWith('json/')) {
+      finalUrl += 'json/';
     }
   }
   localStorage.setItem('dinesync_api_base_url', finalUrl);
