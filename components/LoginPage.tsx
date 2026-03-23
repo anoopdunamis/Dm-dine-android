@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiBaseUrl, setApiBaseUrl, getImageBaseUrl, setImageBaseUrl, DEFAULT_API_BASE_URL, DEFAULT_IMAGE_BASE_URL } from '../config';
 
 interface LoginPageProps {
   onLogin: (user: string, pass: string, role: string) => Promise<boolean>;
@@ -13,6 +14,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
+  const [imageUrl, setImageUrl] = useState(getImageBaseUrl());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +49,83 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
   };
 
+  const handleSaveSettings = () => {
+    setApiBaseUrl(apiUrl);
+    setImageBaseUrl(imageUrl);
+    setShowSettings(false);
+    window.location.reload(); // Reload to apply new URLs
+  };
+
+  const handleResetSettings = () => {
+    setApiUrl(DEFAULT_API_BASE_URL);
+    setImageUrl(DEFAULT_IMAGE_BASE_URL);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative">
+      <button 
+        onClick={() => setShowSettings(true)}
+        className="absolute top-6 right-6 p-3 bg-white rounded-full shadow-sm text-slate-400 hover:text-slate-600 transition-colors"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-2xl font-black text-slate-900 mb-6">Connection Settings</h3>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">API Base URL</label>
+                <input
+                  type="text"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 font-medium text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Image Base URL</label>
+                <input
+                  type="text"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 font-medium text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="flex-1 py-4 rounded-2xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSettings}
+                className="flex-1 py-4 rounded-2xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"
+              >
+                Save & Reload
+              </button>
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={handleResetSettings}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 p-8 sm:p-12 animate-in fade-in slide-in-from-bottom-8 duration-500">
         <div className="mb-10 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-50 rounded-2xl mb-6">
