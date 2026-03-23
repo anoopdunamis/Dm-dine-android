@@ -15,8 +15,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
-  const [imageUrl, setImageUrl] = useState(getImageBaseUrl());
+  const [apiUrl, setApiUrl] = useState(() => {
+    const current = getApiBaseUrl();
+    return current === DEFAULT_API_BASE_URL ? '' : current;
+  });
+  const [imageUrl, setImageUrl] = useState(() => {
+    const current = getImageBaseUrl();
+    return current === DEFAULT_IMAGE_BASE_URL ? '' : current;
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,15 +56,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   const handleSaveSettings = () => {
-    setApiBaseUrl(apiUrl);
-    setImageBaseUrl(imageUrl);
+    setApiBaseUrl(apiUrl.trim());
+    setImageBaseUrl(imageUrl.trim());
     setShowSettings(false);
     window.location.reload(); // Reload to apply new URLs
   };
 
   const handleResetSettings = () => {
-    setApiUrl(DEFAULT_API_BASE_URL);
-    setImageUrl(DEFAULT_IMAGE_BASE_URL);
+    setApiUrl('');
+    setImageUrl('');
   };
 
   return (
@@ -85,6 +91,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   type="text"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="Leave empty for default"
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 font-medium text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
                 />
               </div>
@@ -95,6 +102,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   type="text"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Leave empty for default"
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 font-medium text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
                 />
               </div>
