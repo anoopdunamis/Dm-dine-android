@@ -8,9 +8,11 @@ import SplashScreen from './components/SplashScreen';
 import LoginPage from './components/LoginPage';
 import { Capacitor } from '@capacitor/core';
 
+import { getApiBaseUrl } from './config';
+
 // Configuration for API
 const API_ENABLED = true; 
-const API_BASE_URL = 'https://dm-outlet.com/dmfp/administrator/json/'; 
+const API_BASE_URL = getApiBaseUrl(); 
 
 const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

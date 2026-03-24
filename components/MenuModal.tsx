@@ -9,7 +9,9 @@ interface MenuModalProps {
   onSelectItem: (item: MenuItem) => void;
 }
 
-const IMAGE_BASE_URL = 'https://dynafiles.s3.us-east-2.amazonaws.com/dmfp/';
+import { getImageBaseUrl } from '../config';
+
+const IMAGE_BASE_URL = getImageBaseUrl();
 
 const DietarySymbol = ({ type, className = "" }: { type: 'Veg' | 'Non', className?: string }) => {
   const isVeg = type === 'Veg';
